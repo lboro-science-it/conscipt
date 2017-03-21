@@ -1,0 +1,23 @@
+{
+  "name": "conscipt",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "browserify": "browserify index.js -o conscipt.js",
+    "browserify-dev": "browserify index.js -o conscipt.js",
+    "postbrowserify": "npm run uglifyjs",
+    "uglifyjs": "uglifyjs conscipt.js -o conscipt.js",
+    "build": "npm run browserify",
+    "build-dev": "npm run browserify-dev",
+    "watch-dev": "watchify index.js -o conscipt.js"
+  },
+  "author": "Sean Slingsby <s.c.slingsby@lboro.ac.uk>",
+  "license": "ISC",
+  "dependencies": {
+    "jquery": "^1.12.4",
+    "raphael": "^2.2.7",
+    "uglifyjs": "^2.4.10"
+  }
+}

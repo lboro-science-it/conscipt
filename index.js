@@ -1,0 +1,1 @@
+Conscipt = require('./js/app.js');
