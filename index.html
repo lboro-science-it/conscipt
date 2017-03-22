@@ -9,248 +9,248 @@
     <script src="conscipt.js"></script>
   </head>
   <body>
-
-    <div id="conscipt"></div>
-
+    <div style="width: 50%; height: 30%;">
+      <div id="conscipt"></div>
+    </div>
     <script>
-      var config = {
-        "styles" : {
-          "neuron_1": {                     // light blue
-            "border-color": "blue",
-            "color": "blue"
-          },
-          "neuron_2": {                     // green
-            "border-color": "green",
-            "color": "green"
-          },
-          "neuron_3": {                     // violet
-            "border-color": "purple",
-            "color": "purple"
-          },
-          "neuron_4": {                     // pink
-            "border-color": "pink",
-            "color": "pink"
-          },
-          "neuron_5": {                     // orange
-            "border-color": "orange",
-            "color": "orange"
-          }
-        },
-        "neurons": {
-          "1": {
-            "title": [
-              "Integration Techniques",
-              "or",
-              "Integration as a math tool"
-            ]
-          },
-          "1-1": {
-            "title": [
-              "Initial Integrals"
-            ],
-            "style": "neuron_1",
-            "parent_id": "1"
-          },
-          "1-1-1": {
-            "title": [
-              "Positive powers",
-              "of x",                     // LaTeX here
-              "(polynomials)"
-            ],
-            "style": "neuron_1",
-            "parent_id": "1-1"
-          },
-          "1-1-2": {
-            "title": [
-              "Negative powers",
-              "of x",                     // LaTeX here
-              "(integer values)"
-            ],
-            "style": "neuron_1",
-            "parent_id": "1-1"
-          },
-          "1-1-3": {
-            "title": [
-              "Fractional powers",
-              "of x",                     // LaTeX here
-              "(pos. + neg. values)"
-            ],
-            "style": "neuron_1",
-            "parent_id": "1-1"
-          },
-          "1-1-4": {
-            "title": [
-              "Trigonometric",
-              "functions"
-            ],
-            "style": "neuron_1",
-            "parent_id": "1-1"
-          },
-          "1-1-5": {
-            "title": [
-              "Exponential",
-              "functions"
-            ],
-            "style": "neuron_1",
-            "parent_id": "1-1"
-          },
-          "1-1-6": {
-            "title": [
-              "Logarithmic",
-              "functions"
-            ],
-            "style": "neuron_1",
-            "parent_id": "1-1"
-          },
-          "1-2": {
-            "title": [
-              "Integration by",
-              "substitution"
-            ],
-            "style": "neuron_2",
-            "parent_id": "1"
-          },
-          "1-2-1": {
-            "title": [
-              "Multiple",
-              "Brackets",
-              "(positive powers)"
-            ],
-            "style": "neuron_2",
-            "parent_id": "1-2"
-          },
-          "1-2-2": {
-            "title": [
-              "Multiple",
-              "Brackets",
-              "(negative powers)"
-            ],
-            "style": "neuron_2",
-            "parent_id": "1-2"
-          },
-          "1-2-3": {
-            "title": [
-              "Products",
-              "of 2 functions"
-            ],
-            "style": "neuron_2",
-            "parent_id": "1-2"
-          },
-          "1-2-4": {
-            "title": [
-              "Mystery box"
-            ],
-            "style": "neuron_2",
-            "parent_id": "1-2"
-          },
-          "1-3": {
-            "title": [
-              "Integration",              // LaTeX here
-              "by parts:",
-              "*** need to do LaTeX here ***"
-            ],
-            "style": "neuron_3",
-            "parent_id": "1"
-          },
-          "1-3-1": {
-            "title": [
-              "Once"
-            ],
-            "style": "neuron_3",
-            "parent_id": "1-3"
-          },
-          "1-3-2": {
-            "title": [
-              "Twice"
-            ],
-            "style": "neuron_3",
-            "parent_id": "1-3"
-          },
-          "1-3-3": {
-            "title": [
-              "Recursive"
-            ],
-            "style": "neuron_3",
-            "parent_id": "1-3"
-          },
-          "1-4": {
-            "title": [
-              "Integration",
-              "using",
-              "Partial Fractions"
-            ],
-            "style": "neuron_4",
-            "parent_id": "1"
-          },
-          "1-4-1": {
-            "title": [
-              "A denominator",
-              "with 2 (or more)",
-              "linear factors"
-            ],
-            "style": "neuron_4",
-            "parent_id": "1-4"
-          },
-          "1-4-2": {
-            "title": [
-              "A denominator",
-              "with a repeated",
-              "linear factor",
-              "(or more)"
-            ],
-            "style": "neuron_4",
-            "parent_id": "1-4"
-          },
-          "1-4-3": {
-            "title": [
-              "A denominator",
-              "with a",
-              "quadratic factor"
-            ],
-            "style": "neuron_4",
-            "parent_id": "1-4"
-          },
-          "1-5": {
-            "title": [
-              "Using trigonometric",
-              "formulae / identities",
-              "to make integration",
-              "possible"
-            ],
-            "style": "neuron_5",
-            "parent_id": "1"
-          },
-          "1-5-1": {
-            "title": [
-              "Using",                    // LaTeX here
-              "sin2A = 2sinAcosA"
-            ],
-            "style": "neuron_5",
-            "parent_id": "1-5"
-          },
-          "1-5-2": {
-            "title": [
-              "Using",
-              "cos2A = 2cos2A-1",         // LaTeX here
-              "*** need LaTeX here ***"
-            ],
-            "style": "neuron_5",
-            "parent_id": "1-5"
-          },
-          "1-5-3": {
-            "title": [
-              "Using",
-              "Multiple formulae",        // LaTeX here
-              "*** need LaTeX here ***"
-            ],
-            "style": "neuron_5",
-            "parent_id": "1-5"
-          }
-        }
-      };
       window.onload = function() {
-        Conscipt(config);
-      }
+        var conscipt = new Conscipt({
+          "styles" : {
+            "neuron_1": {                     // light blue
+              "border-color": "blue",
+              "color": "blue"
+            },
+            "neuron_2": {                     // green
+              "border-color": "green",
+              "color": "green"
+            },
+            "neuron_3": {                     // violet
+              "border-color": "purple",
+              "color": "purple"
+            },
+            "neuron_4": {                     // pink
+              "border-color": "pink",
+              "color": "pink"
+            },
+            "neuron_5": {                     // orange
+              "border-color": "orange",
+              "color": "orange"
+            }
+          },
+          "neurons": {
+            "1": {
+              "title": [
+                "Integration Techniques",
+                "or",
+                "Integration as a math tool"
+              ]
+            },
+            "1-1": {
+              "title": [
+                "Initial Integrals"
+              ],
+              "style": "neuron_1",
+              "parent_id": "1"
+            },
+            "1-1-1": {
+              "title": [
+                "Positive powers",
+                "of x",                     // LaTeX here
+                "(polynomials)"
+              ],
+              "style": "neuron_1",
+              "parent_id": "1-1"
+            },
+            "1-1-2": {
+              "title": [
+                "Negative powers",
+                "of x",                     // LaTeX here
+                "(integer values)"
+              ],
+              "style": "neuron_1",
+              "parent_id": "1-1"
+            },
+            "1-1-3": {
+              "title": [
+                "Fractional powers",
+                "of x",                     // LaTeX here
+                "(pos. + neg. values)"
+              ],
+              "style": "neuron_1",
+              "parent_id": "1-1"
+            },
+            "1-1-4": {
+              "title": [
+                "Trigonometric",
+                "functions"
+              ],
+              "style": "neuron_1",
+              "parent_id": "1-1"
+            },
+            "1-1-5": {
+              "title": [
+                "Exponential",
+                "functions"
+              ],
+              "style": "neuron_1",
+              "parent_id": "1-1"
+            },
+            "1-1-6": {
+              "title": [
+                "Logarithmic",
+                "functions"
+              ],
+              "style": "neuron_1",
+              "parent_id": "1-1"
+            },
+            "1-2": {
+              "title": [
+                "Integration by",
+                "substitution"
+              ],
+              "style": "neuron_2",
+              "parent_id": "1"
+            },
+            "1-2-1": {
+              "title": [
+                "Multiple",
+                "Brackets",
+                "(positive powers)"
+              ],
+              "style": "neuron_2",
+              "parent_id": "1-2"
+            },
+            "1-2-2": {
+              "title": [
+                "Multiple",
+                "Brackets",
+                "(negative powers)"
+              ],
+              "style": "neuron_2",
+              "parent_id": "1-2"
+            },
+            "1-2-3": {
+              "title": [
+                "Products",
+                "of 2 functions"
+              ],
+              "style": "neuron_2",
+              "parent_id": "1-2"
+            },
+            "1-2-4": {
+              "title": [
+                "Mystery box"
+              ],
+              "style": "neuron_2",
+              "parent_id": "1-2"
+            },
+            "1-3": {
+              "title": [
+                "Integration",              // LaTeX here
+                "by parts:",
+                "*** need to do LaTeX here ***"
+              ],
+              "style": "neuron_3",
+              "parent_id": "1"
+            },
+            "1-3-1": {
+              "title": [
+                "Once"
+              ],
+              "style": "neuron_3",
+              "parent_id": "1-3"
+            },
+            "1-3-2": {
+              "title": [
+                "Twice"
+              ],
+              "style": "neuron_3",
+              "parent_id": "1-3"
+            },
+            "1-3-3": {
+              "title": [
+                "Recursive"
+              ],
+              "style": "neuron_3",
+              "parent_id": "1-3"
+            },
+            "1-4": {
+              "title": [
+                "Integration",
+                "using",
+                "Partial Fractions"
+              ],
+              "style": "neuron_4",
+              "parent_id": "1"
+            },
+            "1-4-1": {
+              "title": [
+                "A denominator",
+                "with 2 (or more)",
+                "linear factors"
+              ],
+              "style": "neuron_4",
+              "parent_id": "1-4"
+            },
+            "1-4-2": {
+              "title": [
+                "A denominator",
+                "with a repeated",
+                "linear factor",
+                "(or more)"
+              ],
+              "style": "neuron_4",
+              "parent_id": "1-4"
+            },
+            "1-4-3": {
+              "title": [
+                "A denominator",
+                "with a",
+                "quadratic factor"
+              ],
+              "style": "neuron_4",
+              "parent_id": "1-4"
+            },
+            "1-5": {
+              "title": [
+                "Using trigonometric",
+                "formulae / identities",
+                "to make integration",
+                "possible"
+              ],
+              "style": "neuron_5",
+              "parent_id": "1"
+            },
+            "1-5-1": {
+              "title": [
+                "Using",                    // LaTeX here
+                "sin2A = 2sinAcosA"
+              ],
+              "style": "neuron_5",
+              "parent_id": "1-5"
+            },
+            "1-5-2": {
+              "title": [
+                "Using",
+                "cos2A = 2cos2A-1",         // LaTeX here
+                "*** need LaTeX here ***"
+              ],
+              "style": "neuron_5",
+              "parent_id": "1-5"
+            },
+            "1-5-3": {
+              "title": [
+                "Using",
+                "Multiple formulae",        // LaTeX here
+                "*** need LaTeX here ***"
+              ],
+              "style": "neuron_5",
+              "parent_id": "1-5"
+            }
+          }
+        });
+        console.log(conscipt);
+      };
     </script>
   </body>
 </html>
