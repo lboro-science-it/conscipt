@@ -1,9 +1,11 @@
-// core class instance with merged config / defaults
 var Conscipt = require('./js/core');
 
-// modules providing Conscipt functionality
-require('./js/examplemodule')(Conscipt);
-require('./js/dom')(Conscipt);
+require('./js/dom')(Conscipt);    // setup dom elements
+require('./js/map')(Conscipt);    // setup map elements, manage map content
+require('./js/neuron')(Conscipt); // handle neuron class
+require('./js/view')(Conscipt);   // setup resource view elements, manage view content
+
+
 
 module.exports = Conscipt;
 
