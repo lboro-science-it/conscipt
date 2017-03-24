@@ -6,40 +6,31 @@ function Neuron(neuron) {
   for (var thing in neuron) {
     this[thing] = neuron[thing];
   }
-  this.calculatedScene = false;
+  // enables scene to be set manually in config
+  if (typeof this.calculatedScene === 'undefined') this.calculatedScene = false;
 }
 
-// calculate the scene when this node is active
-Neuron.prototype.calculateScene = function(sceneConfig) {
-  // only recalculate if necessary
-  if (!this.calculatedScene) {
-    // position of active Neuron
-    this.activePosition = {
-      "x": sceneConfig.activeX,
-      "y": sceneConfig.activeY
-    };
-    // check if parent exists
-    // if so calculate angle from parent to this
-    // recursively check if parent's parents exist until depth reached
 
 
+// return an object consisting of neurons, positions and sizes to be shown
+Neuron.prototype.getNeuronsToShow = function() {
+  var neurons = [];
 
-    // todo: check existence of parent
-    // if parent exists, determine angle from parent to child
-    // this determines angle through which child nodes can be drawn
-    // oh and also need to account for drawing of parent in the active scene
-    // and drawing of parent's siblings in active scene (and possibly same for grandparents)
-    // then, foreach child, using the new knowledge we have of how many degrees of freedom we have
-    // calculate where to position each child -> angles wise
-    // do some calculation to try and avoid overlapping boxes
-    // save these calculations in the array
-    // also consider box sizing, distance from activate
-    // once all this is done once, it is done. no need to do it again.
-    // we DO however need to somehow figure out which nodes are active at a given point
-    // perhaps we need a pot of visible neurons and a pot of other neurons.
+  neurons.push(this);
+  // iterate through this neuron's children, adding them to the neuronsToShow
+  if (typeof this.children !== 'undefined') var totalChildren = this.children.length; else var totalChildren = 0;
+  if (typeof this.ancestors !== 'undefined') var totalAncestors = this.ancestors.length; else var totalAncestors = 0;
 
-    this.calculatedScene = true;
+  for (var i = 0; i < totalChildren; i++) {
+    var neuron = this.children[i];
+    neurons.push(neuron);
   }
+  for (var i = 0; i < totalAncestors; i++) {
+    var neuron = this.ancestors[i];
+    neurons.push(neuron);
+  }
+
+  return neurons;
 };
 
 module.exports = Neuron;

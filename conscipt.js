@@ -18,14 +18,15 @@ var defaults = {
   "scene": {
     "activeX": 50,          // active neuron position
     "activeY": 50,          // active neuron position
-    "activeWidth": 10,      // active neuron width (% of container)
-    "childWidth": 10,       // child neuron width (% of container)
+    "activeWidth": 8,      // active neuron width (% of container)
+    "childWidth": 8,       // child neuron width (% of container)
+    "childDistance": 25,    // distance of child from active
     "boundingWidth": 50,    // active neuron child plot bounding box width
     "boundingHeight": 50,   // active neuron child plot bounding box height
     "hierarchyWidth": 15,   // hierarchical neuron child plot bounding box width
     "hierarchyHeight": 15,  // hierarchical neuron child plot bounding box height
-    "parentWidth": 2,       // parent neuron width (% of container)
-    "parentDepth": 2,       // how many layers of parents to show
+    "ancestorWidth": 2,       // parent neuron width (% of container)
+    "ancestorDepth": 2,       // how many layers of parents to show
     "childDepth": 1         // number of layers of children to show
   },
   "dom": {
@@ -139,6 +140,7 @@ module.exports = function(Conscipt) {
     this.divId = mapDivId;
     this.containerDivId = containerDivId;
     this.sceneConfig = sceneConfig;
+    this.visibleNeurons = [];
 
     // add the div to the dom
     var mapDiv = document.createElement("DIV");
@@ -164,37 +166,29 @@ module.exports = function(Conscipt) {
   //--------------------
   Map.prototype.activate = function(neuron) {
     var activatingNeuron = this.neurons[neuron];
-    activatingNeuron.calculateScene(this.sceneConfig);
 
-    // check what neurons need to be visible -> active, parents, children
-    // check what position and sizes they need to be in
+    // calculates positions of neurons - also recursively calls parents until reaching ancestorDepth
+    var ancestorDepth = activatingNeuron.ancestorDepth || this.sceneConfig.ancestorDepth;
+    this.calculateScene(activatingNeuron, 0, ancestorDepth);
+    
+    var neuronsToShow = activatingNeuron.getNeuronsToShow();
 
-    // check what neurons are currently visible
-    // check which currently visible neurons need to be hidden -> cue fade them out
-    // cue transforms of other currently visible neurons
-
-    // check which neurons need to be made visible -> cue fade them in
-    // children animate in clockwise
-    // parents are probably already visible
-
-
-  // activate function:
-    // check for children, check for resource <- determines where to position paper
-    // either way, drawing the node layout so process nodes in a foreach:
-      // process title components
-      // do style
-      // calculate positions
-      // create animation cue
-      // same for children, grandchildren (recursion level?)
-    // process resource content in a foreach compoent
-      // process component
-      // create animation cue
+    for (var n in neuronsToShow) {
+      var neuronToShow = neuronsToShow[n];
+      var x = neuronToShow.x * this.widthSF;
+      var y = neuronToShow.y * this.heightSF;
+      var width = this.sceneConfig.activeWidth * this.widthSF;
+      var height = this.sceneConfig.activeWidth * this.heightSF;
+      var rect = this.paper.rect(x - (width / 2), y - (height / 2), width, height);
+    }
+    console.log(neuronsToShow);
   };
 
   //---------------------
   // Map.addNeurons(neurons)
   // -
-  // Add neuron objects to map object, calculate structures
+  // Add neuron objects to map object at init
+  // calculate structures parent-child relationships
   //---------------------
   Map.prototype.addNeurons = function(neurons) {
     this.neurons = {};
@@ -208,11 +202,79 @@ module.exports = function(Conscipt) {
       var currentNeuron = this.neurons[n];
       if (typeof currentNeuron.parent_id !== 'undefined') {
         if (typeof this.neurons[currentNeuron.parent_id].children === 'undefined') this.neurons[currentNeuron.parent_id].children = [];
-        this.neurons[currentNeuron.parent_id].children.push(n);
+        var childNeuron = {
+          "id": n
+        };
+        this.neurons[currentNeuron.parent_id].children.push(childNeuron);
       }
     }
     // todo: register click events to make each neuron active when it's clicked
   };
+
+  // calculate angles to plot children of a given neuron
+  Map.prototype.calculateChildPositions = function(neuron) {
+    // distance between child and active Neuron
+    var childDistance = neuron.childDistance || this.sceneConfig.childDistance;
+
+    // todo: incorporate angle from parent to child in calculating angles
+    // if no parent, children can be plotted 360 around active, otherwise 180 centred reverse to parent
+    if (typeof neuron.parent_id === 'undefined') var degrees = 360; else var degrees = 180;
+    if (typeof neuron.children !== 'undefined') var totalChildren = neuron.children.length; else var totalChildren = 0;
+
+    // single child gets placed half way around arc
+    if (totalChildren == 1) {
+      neuron.children[0].angle = degrees / 2;
+    } else 
+    // pair of children get placed a third and two thirds around arc
+    // todo: when 360, they should end up at 90 and 270, thats (360 / 4) and (360 / 4) * 3 -> so we are working with some kind of how many quarters of the screen are we working with number
+    if (totalChildren == 2) {
+      neuron.children[0].angle = degrees / 3;
+      neuron.children[1].angle = (degrees / 3) * 2;
+    } else {    // 3 or more children get evenly distributed around the arc
+      if (degrees == 360) var spacer = degrees / totalChildren;
+      else var spacer = degrees / (totalChildren - 1);
+      for (var i = 0; i < totalChildren; i++) neuron.children[i].angle = i * spacer;
+    }
+
+    // calculate the actual x, y positions of the children
+    for (var i = 0; i < totalChildren; i++) {
+      neuron.children[i].angle += 270;
+      if (neuron.children[i].angle > 360) neuron.children[i].angle -= 360;
+
+      neuron.children[i].x = Math.cos(neuron.children[i].angle * Math.PI / 180) * (childDistance) + neuron.x;
+      neuron.children[i].y = Math.sin(neuron.children[i].angle * Math.PI / 180) * (childDistance) + neuron.y;
+    }
+  };
+
+  //---------------------
+  // Map.calculateScene(neuron, iteration, depth)
+  // -
+  // calculates positions, sizes, etc of a particular neuron's scene
+  // recurses through parents iteration number of times until reaching depth
+  //---------------------
+  Map.prototype.calculateScene = function(neuron, iteration, depth) {
+    if (!neuron.calculatedScene) {
+      // set active position of neuron
+      neuron.x = this.sceneConfig.activeX;
+      neuron.y = this.sceneConfig.activeY;
+
+      // todo: enable more than 1 level of children displaying
+      // var childDepth = this.childDepth || this.sceneConfig.childDepth;
+            
+      // recursively calculate all the ancestor scenes we need
+      if (typeof neuron.parent_id !== 'undefined') {        // if this has a parent
+        // if depth is set then we are currently recursively calculating parent scenes
+        var ancestorDepth = neuron.ancestorDepth || this.sceneConfig.ancestorDepth;
+        if (typeof depth !== 'undefined') ancestorDepth = depth;    // now depth is set correctly
+        if (typeof iteration !== 'undefined') var iteration = iteration + 1; else var iteration = 0;
+        var parentNeuron = this.neurons[neuron.parent_id];
+        this.calculateScene(parentNeuron, iteration, ancestorDepth);
+      }
+      // calculates positions of the (single layer) of child Neurons of this Neuron
+      this.calculateChildPositions(neuron);
+      neuron.calculatedScene = true;
+    }
+  }
 
   //---------------------
   // Map.calculateSize()
@@ -264,40 +326,31 @@ function Neuron(neuron) {
   for (var thing in neuron) {
     this[thing] = neuron[thing];
   }
-  this.calculatedScene = false;
+  // enables scene to be set manually in config
+  if (typeof this.calculatedScene === 'undefined') this.calculatedScene = false;
 }
 
-// calculate the scene when this node is active
-Neuron.prototype.calculateScene = function(sceneConfig) {
-  // only recalculate if necessary
-  if (!this.calculatedScene) {
-    // position of active Neuron
-    this.activePosition = {
-      "x": sceneConfig.activeX,
-      "y": sceneConfig.activeY
-    };
-    // check if parent exists
-    // if so calculate angle from parent to this
-    // recursively check if parent's parents exist until depth reached
 
 
+// return an object consisting of neurons, positions and sizes to be shown
+Neuron.prototype.getNeuronsToShow = function() {
+  var neurons = [];
 
-    // todo: check existence of parent
-    // if parent exists, determine angle from parent to child
-    // this determines angle through which child nodes can be drawn
-    // oh and also need to account for drawing of parent in the active scene
-    // and drawing of parent's siblings in active scene (and possibly same for grandparents)
-    // then, foreach child, using the new knowledge we have of how many degrees of freedom we have
-    // calculate where to position each child -> angles wise
-    // do some calculation to try and avoid overlapping boxes
-    // save these calculations in the array
-    // also consider box sizing, distance from activate
-    // once all this is done once, it is done. no need to do it again.
-    // we DO however need to somehow figure out which nodes are active at a given point
-    // perhaps we need a pot of visible neurons and a pot of other neurons.
+  neurons.push(this);
+  // iterate through this neuron's children, adding them to the neuronsToShow
+  if (typeof this.children !== 'undefined') var totalChildren = this.children.length; else var totalChildren = 0;
+  if (typeof this.ancestors !== 'undefined') var totalAncestors = this.ancestors.length; else var totalAncestors = 0;
 
-    this.calculatedScene = true;
+  for (var i = 0; i < totalChildren; i++) {
+    var neuron = this.children[i];
+    neurons.push(neuron);
   }
+  for (var i = 0; i < totalAncestors; i++) {
+    var neuron = this.ancestors[i];
+    neurons.push(neuron);
+  }
+
+  return neurons;
 };
 
 module.exports = Neuron;
