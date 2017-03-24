@@ -6,8 +6,6 @@ require('./js/map')(Conscipt);    // setup map elements, manage map content
 require('./js/neuron')(Conscipt); // handle neuron class
 require('./js/view')(Conscipt);   // setup resource view elements, manage view content
 
-
-
 module.exports = Conscipt;
 
 if (typeof window !== 'undefined') {
@@ -16,8 +14,19 @@ if (typeof window !== 'undefined') {
 },{"./js/core":3,"./js/dom":4,"./js/map":5,"./js/neuron":6,"./js/view":7}],2:[function(require,module,exports){
 // default config will be exposed for user to overwrite in config
 var defaults = {
-  "options": {
-    "root_node": "1"
+  "rootNode": "1",
+  "scene": {
+    "activeX": 50,          // active neuron position
+    "activeY": 50,          // active neuron position
+    "activeWidth": 10,      // active neuron width (% of container)
+    "childWidth": 10,       // child neuron width (% of container)
+    "boundingWidth": 50,    // active neuron child plot bounding box width
+    "boundingHeight": 50,   // active neuron child plot bounding box height
+    "hierarchyWidth": 15,   // hierarchical neuron child plot bounding box width
+    "hierarchyHeight": 15,  // hierarchical neuron child plot bounding box height
+    "parentWidth": 2,       // parent neuron width (% of container)
+    "parentDepth": 2,       // how many layers of parents to show
+    "childDepth": 1         // number of layers of children to show
   },
   "dom": {
     "bodyHeight": "100%",
@@ -47,42 +56,26 @@ function Conscipt(config) {
 
 // init everything required to display map
 Conscipt.prototype.init = function() {
-  this.initDom(); // setup conscipt div, style <body> and <html>
+  this.initDom();               // setup conscipt div, style <body> and <html>
   this.map = this.Map();        // construct a map instance to display map in
   this.view = this.View();      // construct a view instance to display view in
-  this.neurons = this.map.addNeurons(this.config.neurons);
+  this.map.addNeurons(this.config.neurons);   // add the neurons from config to the map
 
+  this.map.activate(this.config.rootNode);   // make root note the active node -> incl calculating its 'scene'
 
   /*
   this.initResources  <- creation of resource objects
-  this.initNeurons    <- calculate child/parent positions etc, create click events
-  this.activate(root) <- parse through neurons calling some kind of drawNeuron etc based on this.state
   */
-
-  // now ready to process neurons... identify root node, make it active (config overrides?)
-
-  // activate function:
-    // check for children, check for resource <- determines where to position paper
-    // either way, drawing the node layout so process nodes in a foreach:
-      // process title components
-      // do style
-      // calculate positions
-      // create animation cue
-      // same for children, grandchildren (recursion level?)
-    // process resource content in a foreach compoent
-      // process component
-      // create animation cue
 
   // create resource rendering object - i.e. it can be passed a 'resource' array and render it
 
   // if active node has resources then we should be drawing it to the side and resource main
-  // template dependent
 
   // events:
-  // register onclick = make node active event
   // register other events according to component declarations (component module)
-  // register onresize event which re-does the paper object, scaling factor, box size, connector size, etc
 }
+
+
 
 module.exports = Conscipt;
 },{"./config":2,"extend":8}],4:[function(require,module,exports){
@@ -129,9 +122,10 @@ module.exports = function(Conscipt) {
   //-----------------
   Conscipt.prototype.Map = function(mapName) {
     var consciptDivId = this.config.dom.consciptDivId;
+    var sceneConfig = this.config.scene;
     var mapName = mapName || "map";
     var mapDivId = consciptDivId + "-" + mapName;
-    return new Map(consciptDivId, mapDivId);
+    return new Map(consciptDivId, mapDivId, sceneConfig);
   };
 
   //-----------------
@@ -139,11 +133,13 @@ module.exports = function(Conscipt) {
   // -
   // create div within container, create Raphael paper
   //-----------------
-  function Map(containerDivId, mapDivId) {
+  function Map(containerDivId, mapDivId, sceneConfig) {
     var self = this;
 
     this.divId = mapDivId;
     this.containerDivId = containerDivId;
+    this.sceneConfig = sceneConfig;
+
     // add the div to the dom
     var mapDiv = document.createElement("DIV");
     mapDiv.style.display = "inline-block";
@@ -161,6 +157,40 @@ module.exports = function(Conscipt) {
     this.paper = Raphael(mapDivId, this.width, this.height);
   };
 
+  //--------------------
+  // Map.activate(neuron)
+  // -
+  // activate a particular neuron
+  //--------------------
+  Map.prototype.activate = function(neuron) {
+    var activatingNeuron = this.neurons[neuron];
+    activatingNeuron.calculateScene(this.sceneConfig);
+
+    // check what neurons need to be visible -> active, parents, children
+    // check what position and sizes they need to be in
+
+    // check what neurons are currently visible
+    // check which currently visible neurons need to be hidden -> cue fade them out
+    // cue transforms of other currently visible neurons
+
+    // check which neurons need to be made visible -> cue fade them in
+    // children animate in clockwise
+    // parents are probably already visible
+
+
+  // activate function:
+    // check for children, check for resource <- determines where to position paper
+    // either way, drawing the node layout so process nodes in a foreach:
+      // process title components
+      // do style
+      // calculate positions
+      // create animation cue
+      // same for children, grandchildren (recursion level?)
+    // process resource content in a foreach compoent
+      // process component
+      // create animation cue
+  };
+
   //---------------------
   // Map.addNeurons(neurons)
   // -
@@ -172,8 +202,8 @@ module.exports = function(Conscipt) {
     for (var n in neurons) {
       this.neurons[n] = new Neuron(neurons[n]);
     }
-    console.log(this.neurons);
     // add child neurons to their parents
+    // todo: only add if children not already defined
     for (var n in this.neurons) {
       var currentNeuron = this.neurons[n];
       if (typeof currentNeuron.parent_id !== 'undefined') {
@@ -181,7 +211,7 @@ module.exports = function(Conscipt) {
         this.neurons[currentNeuron.parent_id].children.push(n);
       }
     }
-    console.log(this.neurons);
+    // todo: register click events to make each neuron active when it's clicked
   };
 
   //---------------------
@@ -204,8 +234,9 @@ module.exports = function(Conscipt) {
       this.width = width;
       this.height = (width / 16) * 9;
     }
-    // scaling factor will be used to position elements on a percentage co-ords
-    this.scalingFactor = this.width / 100;
+    // SF = scaling factor, used to position elements on percentage co-ords
+    this.widthSF = this.width / 100;
+    this.heightSF = this.height / 100;
 
     // todo: vertical positioning (center)
     // todo: incorporate view mode (i.e. if we are viewing a resource)
@@ -229,12 +260,45 @@ module.exports = function(Conscipt) {
 
 // Neuron class constructor
 function Neuron(neuron) {
-  // copy the properties of the neuron object into this instance
+  // copy the properties of the neuron object into this instance  
   for (var thing in neuron) {
     this[thing] = neuron[thing];
   }
+  this.calculatedScene = false;
 }
 
+// calculate the scene when this node is active
+Neuron.prototype.calculateScene = function(sceneConfig) {
+  // only recalculate if necessary
+  if (!this.calculatedScene) {
+    // position of active Neuron
+    this.activePosition = {
+      "x": sceneConfig.activeX,
+      "y": sceneConfig.activeY
+    };
+    // check if parent exists
+    // if so calculate angle from parent to this
+    // recursively check if parent's parents exist until depth reached
+
+
+
+    // todo: check existence of parent
+    // if parent exists, determine angle from parent to child
+    // this determines angle through which child nodes can be drawn
+    // oh and also need to account for drawing of parent in the active scene
+    // and drawing of parent's siblings in active scene (and possibly same for grandparents)
+    // then, foreach child, using the new knowledge we have of how many degrees of freedom we have
+    // calculate where to position each child -> angles wise
+    // do some calculation to try and avoid overlapping boxes
+    // save these calculations in the array
+    // also consider box sizing, distance from activate
+    // once all this is done once, it is done. no need to do it again.
+    // we DO however need to somehow figure out which nodes are active at a given point
+    // perhaps we need a pot of visible neurons and a pot of other neurons.
+
+    this.calculatedScene = true;
+  }
+};
 
 module.exports = Neuron;
 },{}],7:[function(require,module,exports){
