@@ -1,28 +1,62 @@
-// default config will be exposed for user to overwrite in config
-var defaults = {
-  "rootNode": "1",
-  "scene": {
-    "activeX": 50,          // active neuron position
-    "activeY": 50,          // active neuron position
-    "activeWidth": 8,      // active neuron width (% of container)
-    "childWidth": 8,       // child neuron width (% of container)
-    "childDistance": 25,    // distance of child from active
-    "boundingWidth": 50,    // active neuron child plot bounding box width
-    "boundingHeight": 50,   // active neuron child plot bounding box height
-    "hierarchyWidth": 15,   // hierarchical neuron child plot bounding box width
-    "hierarchyHeight": 15,  // hierarchical neuron child plot bounding box height
-    "ancestorWidth": 2,       // parent neuron width (% of container)
-    "ancestorDepth": 2,       // how many layers of parents to show
-    "childDepth": 1         // number of layers of children to show
+// config.js
+
+var extend = require('extend');
+
+module.exports = {
+  "defaults": {
+    "div": {
+      "id": "conscipt",
+      "style": {
+        "height": "100%",
+        "textAlign": "center",
+        "width": "100%"
+      }
+    },
+    "dom": {
+      "body": {
+        "style": {
+          "height": "100%",
+          "margin": "0"
+        }
+      },
+      "documentElement": {
+        "style": {
+          "height": "100%"
+        }
+      }
+    },
+    "neurons": {
+      "1": {
+        "title": [
+          "default_neuron"
+        ]
+      }
+    },
+    "rootNeuron": "1",
+    "scene": {          // default scene positions, sizes
+      "active": {       // for active neuron
+        "x": 50,        // screen position (in percent)
+        "y": 50,        // screen position (in percent)
+        "width": 8       // width (in percent of screen)
+      },
+      "child": {        // child neuron of active neuron
+        "depth": 1,      // depth of children (in hierarchy) to get from active
+        "distance": 25, // distance distance from active
+        "width": 8      // width
+      },
+      "ancestor": {     // ancestor of active neuron
+        "depth": 2,     // depth in hierarchy (upwards) to go
+        "width": 8      // width of ancestors
+      },
+      "zii": {          // other children of ancestors (uncles, aunts, etc)
+        "depth": 1,     // how deep to go in hierarchy
+        "width": 2      // how wide to draw em
+      }
+    },
   },
-  "dom": {
-    "bodyHeight": "100%",
-    "bodyMargin": "0",
-    "htmlHeight": "100%",
-    "consciptDivHeight": "100%",
-    "consciptDivWidth": "100%",
-    "consciptDivId": "conscipt"
+  // merge passed config with defaults
+  merge: function(config) {
+    var _defaults = extend(true, {}, this.defaults);
+    return extend(true, _defaults, config);
   }
 };
-
-module.exports = defaults;

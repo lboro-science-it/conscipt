@@ -1,26 +1,59 @@
-// dom.js - set up required dom elements, apply required styles to <body> and <html>
-module.exports = function(Conscipt) {
-  // initDom can be called from any Conscipt instance
-  Conscipt.prototype.initDom = function() {
-    var config = this.config;
-    // set <body> and <html> element heights to 100% by default
-    document.body.style.height = config.dom.bodyHeight;
-    document.body.style.margin = config.dom.bodyMargin;
-    document.documentElement.style.height = config.dom.htmlHeight;
-    // get or create consciptDiv
-    var consciptDiv = document.getElementById(config.dom.consciptDivId);
-    if (!consciptDiv) {
-      var consciptDiv = document.createElement("DIV");
-      consciptDiv.id = config.dom.consciptDivId;
-      document.body.appendChild(consciptDiv);
+// dom.js
+
+// init dom based on config passed, creating elements as required
+module.exports.init = function(config) {
+
+  for (var elem in config) {
+    if (typeof document[elem] !== 'undefined') {
+      // elem exists in document so is body, documentElement, etc - apply the values to attr's props
+      for (var attr in config[elem]) {
+        for (var prop in config[elem][attr]) {
+          document[elem][attr][prop] = config[elem][attr][prop];
+        }
+      }
+    } else {
+      // elem doesn't exist in document so we need see if it exists in dom and create if not
+      for (var id in config[elem]) {
+        var domElem = document.getElementById(id);
+        if (!domElem) {
+          var domElem = document.createElement(elem);
+          domElem.id = id;
+          if (typeof config[elem][id]["parent"] === 'undefined') document.body.appendChild(domElem);
+          else {
+            var parentElem = document.getElementById(config[elem][id]["parent"]);
+            parentElem.appendChild(domElem);
+          }
+        }
+        // now apply the values to attr's props
+        for (var attr in config[elem][id]) {
+          for (var prop in config[elem][id][attr]) {
+            if (typeof domElem[attr] !== 'undefined')
+            domElem[attr][prop] = config[elem][id][attr][prop];
+          }
+        }
+      }
     }
-    // set consciptDiv height/width to 100% by default
-    consciptDiv.style.height = config.dom.consciptDivHeight;
-    consciptDiv.style.width = config.dom.consciptDivWidth;
-    consciptDiv.style.textAlign = "center";
-
-    // todo: think about abstracting out the creation of content divs so they
-    // can be requested by other modules etc...
   }
+};
 
+// addChildDiv(config)
+// -
+// adds a div with id = config.id to config.parent (if set) with config.styles
+module.exports.addChildDiv = function(config) {
+  if (typeof config.id !== 'undefined') {
+    var domElem = document.getElementById(config.id);
+    if (!domElem) {
+      var domElem = document.createElement("DIV");
+      domElem.id = config.id;
+      if (typeof config.parent === 'undefined') document.body.appendChild(domElem);
+      else {
+        var parentElem = document.getElementById(config.parent);
+        if (parentElem) parentElem.appendChild(domElem);
+      }
+    }
+    if (typeof config.style !== 'undefined') for (var prop in config.style) {
+      domElem.style[prop] = config.style[prop];
+    }
+    return domElem;
+  }
 };
