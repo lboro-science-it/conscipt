@@ -22,15 +22,14 @@ module.exports = function(config) {
     this.neurons = this.config.neurons; // move neurons to main object
     delete this.config.neurons;
 
-    addChildren(this.neurons);       // build child arrays based on parent_id
+    addChildren(this.neurons);          // build child arrays based on parent_id
     addNeuronIds(this.neurons);         // add id of neuron to an id field within neuron
-    addParents(this.neurons);
+    addParents(this.neurons);           // add parent object reference to each neuron
 
     var mapDivId = this.div.id + "-map";
     this.map = new Map(this, mapDivId, this.div.id, this.config.scene);           // create a map instance for rendering scenes
 
     this.view = new View(this);
-
 
     this.activeNeuron = {};
 
@@ -66,19 +65,16 @@ module.exports = function(config) {
   // calculating positions of grandchildren if necessary,
   // then travelling back down the chain to calculate ancestors closer to the active neuron, including uncles etc
   // and finally calculating the active neuron's child positions (based on its parent positions)
-  // todo: refactor below code into external functions
   // todo: adapt below to only calculate if they haven't already been calculated
   //---------------------------
   Conscipt.prototype.calculatePositions = function(neuron, childDepth, ancestorDepth, ziiDepth) {
-    var childDepth = childDepth || 0;
-    var ancestorDepth = ancestorDepth || 0;
-    var ziiDepth = ziiDepth || 0;
+    var childDepth = childDepth || 0, ancestorDepth = ancestorDepth || 0, ziiDepth = ziiDepth || 0;
     var hasParent = typeof neuron.parent_id !== 'undefined';
     if (hasParent) var parentNeuron = this.neurons[neuron.parent_id];
     var hasChildren = typeof neuron.children !== 'undefined';
 
     // call self with parent until reached ancestorDepth
-    if (ancestorDepth > 0 && hasParent) ancResponse = this.calculatePositions(parentNeuron, ziiDepth, ancestorDepth - 1, ziiDepth);
+    if (ancestorDepth > 0 && hasParent) this.calculatePositions(parentNeuron, ziiDepth, ancestorDepth - 1, ziiDepth);
 
     // call self with each child IF childDepth > 1 (i.e. show grandchildren)
     if (childDepth > 1 && hasChildren) for (var i = 0; i < neuron.children.length; i++) {
@@ -87,43 +83,8 @@ module.exports = function(config) {
     }
     // once here, we know all ancestors + ancestors other children which need processing have been processed
 
-    // calculate parent angle - required to calculate child angles / positions
-    var degrees = 360;          // default degrees when no parent (root node)
-    var parentAngle = false;    // default angle when no parent (first node)
-    if (hasParent) {
-      degrees = 180;  // when neuron has parent, plot children on the opposite 180 degrees to parent
-      for (var i = 0; i < parentNeuron.children.length; i++) {
-        if (parentNeuron.children[i].id == neuron.id) {
-          var parentAngle = parentNeuron.children[i].angle + 180; // child angle + 180 = parent angle is reverse of child angle
-          parentAngle %= 360;   // keep angles within 0-360 range
-        }
-      }
-    }
-
-    // process neuron's children
-    if (childDepth == 1 && hasChildren) {
-      var totalChildren = neuron.children.length || 0;
-
-      var angle;      // calculate angle between each neuron
-      if (totalChildren == 1) angle = degrees / 2;
-      else if (totalChildren == 2) angle = degrees / 3;
-      else {          // 3 or more children
-        if (degrees == 360) angle = degrees / totalChildren;
-        else angle = degrees / (totalChildren - 1);
-      }
-
-      // iterate through the children, set the angle incorporating parent angle
-      for (var i = 0; i < neuron.children.length; i++) {
-        if (!parentAngle) neuron.children[i].angle = angle * i;         // if no parentAngle, distribute 360 starting at 0
-        else neuron.children[i].angle = (parentAngle + 90) + angle * i; // if parentAngle, distribute 180 starting at parentAngle + 90
-
-        neuron.children[i].angle %= 360;                        // keep angles within 360 range
-        var plotAngle = (neuron.children[i].angle + 270) % 360; // reorient angle so 0 is at top
-        // calculate the actual positions
-        neuron.children[i].x = Math.cos(plotAngle * Math.PI / 180) * (25) + 50;
-        neuron.children[i].y = Math.sin(plotAngle * Math.PI / 180) * (25) + 50;
-      }
-    }
+    // process this neuron's children
+    if (childDepth == 1 && hasChildren) calculateChildPositions(neuron, parentNeuron);
   };
 
   //---------------------------
@@ -153,10 +114,8 @@ module.exports = function(config) {
     // ensure relevant neurons have positions calculated
     this.calculatePositions(neuron, childDepth, ancestorDepth, ziiDepth);
 
-    // todo: get any neurons which need to be added to scene
-    // so ancestors up to ancestorDepth
-    // ancestor children down to ziiDepth
-    // children down to childDepth
+    // todo: in a similar style to above function, recurse through every neuron which needs to be added to the scene and add it
+    // treat ancestors separately to zii, separately to children
 
     return scene;
   };
@@ -205,3 +164,44 @@ var addParents = function(neurons) {
     }
   }
 }
+
+var calculateChildAngle = function(neuron) {
+  if (typeof neuron.parent_id !== 'undefined') var degrees = 180; else var degrees = 360;
+  var totalChildren = neuron.children.length || 0;
+  var angle;      // calculate angle between each neuron
+  if (totalChildren == 1) angle = degrees / 2;
+  else if (totalChildren == 2) angle = degrees / 3;
+  else {          // 3 or more children
+    if (degrees == 360) angle = degrees / totalChildren;
+    else angle = degrees / (totalChildren - 1);
+  }
+  return angle;
+};
+
+var calculateChildPositions = function(neuron, parentNeuron) {
+  var parentAngle = calculateParentAngle(neuron, parentNeuron);
+  var angle = calculateChildAngle(neuron);
+  // iterate through the children, set the angle incorporating parent angle
+  for (var i = 0; i < neuron.children.length; i++) {
+    if (!parentAngle) neuron.children[i].angle = angle * i;         // if no parentAngle, distribute 360 starting at 0
+    else neuron.children[i].angle = (parentAngle + 90) + angle * i; // if parentAngle, distribute 180 starting at parentAngle + 90
+    neuron.children[i].angle %= 360;                        // keep angles within 360 range
+    var plotAngle = (neuron.children[i].angle + 270) % 360; // reorient angle so 0 is at top
+    // calculate the actual positions
+    neuron.children[i].x = Math.cos(plotAngle * Math.PI / 180) * (25) + 50;
+    neuron.children[i].y = Math.sin(plotAngle * Math.PI / 180) * (25) + 50;
+  }
+}
+
+var calculateParentAngle = function(neuron, parentNeuron) {
+  var parentAngle = false;    // default angle when no parent (first node)
+  if (typeof neuron.parent_id !== 'undefined') {
+    for (var i = 0; i < parentNeuron.children.length; i++) {
+      if (parentNeuron.children[i].id == neuron.id) {
+        var parentAngle = parentNeuron.children[i].angle + 180; // child angle + 180 = parent angle is reverse of child angle
+        parentAngle %= 360;   // keep angles within 0-360 range
+      }
+    }
+  }
+  return parentAngle;
+};
