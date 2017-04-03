@@ -38,6 +38,8 @@ function Map(parent, mapDivId, containerDivId) {
   this.canvas = initCanvas(this.div, this.width, this.height);
 };
 
+// todo: ensure all old neurons get deleted - the reference to them too etc
+
 //------------------------
 // Map.render(scene)
 // -
@@ -45,7 +47,64 @@ function Map(parent, mapDivId, containerDivId) {
 // Animate out neurons, animate in new neurons, etc
 //------------------------
 Map.prototype.render = function(scene) {
+  var self = this;
 
+  // todo: replace animations with cueing animations and a final trigger of animations
+  // so animating from place to place happens in a nice sequence
+
+  for (var n in this.activeScene) {
+    var visibleNeuron = this.activeScene[n];
+
+    if (typeof scene[n] === 'undefined') {  // remove visible neurons that aren't in new scene
+      visibleNeuron.rect.animate({
+        "opacity": 0
+      }, 500, "linear", function() {
+        this.remove();
+      });
+      delete this.activeScene[n];
+    } else {  // currently-visible neuron is present in new scene
+      var width = scene[n].width * this.widthSF;
+      var height = scene[n].width * this.heightSF;
+      var x = (scene[n].x * this.widthSF) - (width / 2);
+      var y = (scene[n].y * this.heightSF) - (height / 2);
+
+      visibleNeuron.rect.animate({
+        "x": x,
+        "y": y,
+        "width": width, // todo: function to calculate width w/ SF
+        "height": height // todo: put height in here!
+        // todo: insert code to move the neuron to its new position and size
+      }, 500, "linear");
+
+      // todo: need to keep activeScene updated in line with scene[n] without breaking stuff.
+    }
+    // move currently-visible neurons to their new positions (and sizes)
+  }
+
+  // this.canvas.clear();        // for now just clear the canvas, eventually will go through and animate etc
+  // create neurons that aren't already visible
+  for (var n in scene) {
+    if (typeof this.activeScene[n] === 'undefined') {
+      this.activeScene[n] = scene[n];
+      var currentNeuron = scene[n];
+
+                  // todo: don't create rect if it is already present!
+      var width = currentNeuron.width * this.widthSF;
+      var height = currentNeuron.width * this.heightSF;   // todo: calculate height based on content (elsewhere)
+      var x = (currentNeuron.x * this.widthSF) - (width / 2);
+      var y = (currentNeuron.y * this.heightSF) - (height / 2);
+      var fill = currentNeuron.fill || "#fff";
+
+      var rect = this.canvas.rect(x, y, width, height)
+                            .attr({fill: fill})
+                            .data("n", n)
+                            .click(function() {
+                              self.parent.activate(this.data("n"));
+                            });
+
+      this.activeScene[n].rect = rect;
+    }
+  }
 
 };
 
@@ -83,9 +142,12 @@ Map.prototype.calculateSize = function(containerDivId) {
 // Map.resize()
 // -
 // Calculate the size, resize the canvas, and then redraw the scene
+//-------------------------
 Map.prototype.resize = function() {
   this.calculateSize();
   resizeCanvas(this);
+  this.render(this.activeScene);
+  // todo: refactor the rescaling content into a redraw type of function -> limit calls to it / check how often it is called
   // todo: also rescaling content
   // todo: dealing with responsive?
 };
