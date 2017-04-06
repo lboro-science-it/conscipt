@@ -1,4 +1,4 @@
-// dom.js
+// dom.js - init dom based on config
 
 // init dom based on config passed, creating elements as required
 module.exports.init = function(config) {

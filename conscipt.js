@@ -7,7 +7,7 @@ if (typeof window !== 'undefined') {
   window.Conscipt = Conscipt;
 }
 },{"./js/conscipt":3}],2:[function(require,module,exports){
-// config.js
+// config.js - defaults which get merged with whatever config is passed
 
 var extend = require('extend');
 
@@ -24,6 +24,7 @@ module.exports = {
     "dom": {
       "body": {
         "style": {
+          "background": "#fffff0",
           "height": "100%",
           "margin": "0"
         }
@@ -64,6 +65,12 @@ module.exports = {
         "width": 2      // how wide to draw em
       }
     },
+    "styles": {
+      "default": {
+        "border-color": "#000000",
+        "fill": "#ffffff"
+      }
+    }
   },
   // merge passed config with defaults
   merge: function(config) {
@@ -73,8 +80,6 @@ module.exports = {
 };
 },{"extend":8}],3:[function(require,module,exports){
 // conscipt.js - all stuff about init the neuron structure, controller, etc
-// todo: probably move out 'controllerish' code into a controller module
-// so the only call from here might be 'controller.init' - although then accessing 'this...'
 
 var defaults = require('./config'); // merge default config with passed
 var dom = require('./dom');         // dom, create div, etc
@@ -87,15 +92,25 @@ module.exports = function(config) {
   // Conscipt constructor
   function Conscipt(config) {
     this.config = defaults.merge(config);
+
+    // init dom for the conscipt div
     dom.init(this.config.dom);          // style <body> and <html> elems
     delete this.config.dom;
     this.div = dom.addChildDiv(this.config.div);
+
+    // init neuron structure etc
     this.neurons = this.config.neurons; // move neurons to main object
     delete this.config.neurons;
-    n.init(this.neurons);               // init neurons (create children arrays, parent objects, etc)
+    n.init(this.neurons, this.config.styles);               // init neurons (create children arrays, parent objects, add neurons to n)
+
+    // create div for the map
     var mapDivId = this.div.id + "-map";
     this.map = new Map(this, mapDivId, this.div.id, this.config.scene);           // create a map instance for rendering scenes
-    this.view = new View(this);
+
+    var viewDivId = this.div.id + "-view";
+    this.view = new View(this, viewDivId, this.div.id);
+
+    // initialise the map neuron view
     this.activeNeuron = {};
     this.activate(this.neurons[this.config.rootNeuron]);
   };
@@ -103,9 +118,10 @@ module.exports = function(config) {
   //---------------------------
   // Conscipt.activate(neuron)
   // -
-  // make neuron active = get its scene and pass to map to render
+  // get neuron's scene, or calculate it first if needed, pass it to be rendered, make it active
   //---------------------------
   Conscipt.prototype.activate = function(neuron) {
+    console.log(this);
     if (typeof neuron === 'string') neuron = this.neurons[neuron];
     if (this.activeNeuron !== neuron) {
       var scene = this.getScene(neuron);  // scene = list of neurons, positions, sizes when neuron is active
@@ -117,101 +133,41 @@ module.exports = function(config) {
   //---------------------------
   // Conscipt.calculateScene()
   // - 
-  // called if neuron's scene needs to be calculated
-  // ensure all ancestors, children, etc have positions calculated
-  // then use that data to put together the scene
+  // calculates positions of necessary ancestors/children/zii, creates a scene object of co-ords, sizes, etc
   //---------------------------
-
-  // todo: refactor the below into helper functions (probably on the neuron module)
-
   Conscipt.prototype.calculateScene = function(neuron) {
-    var sceneConfig = neuron.sceneConfig || this.config.scene;  // allow for neuron-specific scene config
-    var ancestorDepth = sceneConfig.ancestor.depth;             // how far upwards do we want to include
-    var childDepth = sceneConfig.child.depth;                   // how far downwards we want to include
-    var ziiDepth = sceneConfig.zii.depth;                       // how deep within ancestor children to include children
+    var sceneConfig = neuron.sceneConfig || this.config.scene;  // get neuron specific config if exists, or global if not
+    var scene = {};       // init scene object to return
 
-    var scene = {};     // the object which will be returned
-
-    if (typeof neuron.parent !== 'undefined') var parentId = neuron.parent.id; else var parentId = null;
-
-    // add active neuron to scene
-    if (typeof scene[neuron.id] === 'undefined') scene[neuron.id] = {
-      "parent": parentId,
-      "width": sceneConfig.active.width,
-      "x": sceneConfig.active.x,
-      "y": sceneConfig.active.y,
-      "fill": "#d4d4d4",                    // todo: get fill based on styles
-      "height": sceneConfig.active.width    // todo: calculate this based on content
-    };
-
-    // calculate neuron's childPositions, also calculates all ancestor childPositions
-    n.calculateChildPositions(neuron, sceneConfig);      
-
-    // add child neurons (single level) to the scene
-    for (var i = 0; i < neuron.children.length; i++) {
-      var currentChild = neuron.children[i];
-      if (typeof scene[currentChild.id] === 'undefined') scene[currentChild.id] = {
-        "parent": neuron.id,
-        "width": sceneConfig.child.width,
-        "x": currentChild.x,
-        "y": currentChild.y,
-        "height": sceneConfig.child.width   // todo: calc height based on content
-      };
-    }
+    // add active neuron to scene, along with its children
+    n.addToScene(scene, neuron, sceneConfig.active.x, sceneConfig.active.y, sceneConfig.active.width, sceneConfig.active.height);
+    n.addChildrenToScene(scene, neuron, sceneConfig.child);
 
     // process ancestors (up to ancestorDepth) exactly as we did above
-    var processingNeuron = {
-      id: neuron.id
-    };
-    for (var a = 0; a < ancestorDepth; a++) {
+    var processingNeuron = {id: neuron.id};   // store current processing neuron
+    for (var a = 0; a < sceneConfig.ancestor.depth; a++) {
       var currentNeuron = this.neurons[processingNeuron.id];
-      if (typeof currentNeuron.parent !== 'undefined') {
-        // current neuron has a parent, excelletnt.
+      if (typeof currentNeuron.parent !== 'undefined') {  // current Neuron has an ancestor - therefore we have to draw the ancestor and its children
         var ancestor = this.neurons[currentNeuron.parent.id];
-        // we add ancestor to the scene based on sceneConfig settings and distance from currentNeuron
-
-        // get parent id of ancestor (if it has one) - this will be used to join children to ancestors at render stage
-        if (typeof ancestor.parent !== 'undefined') var parentId = ancestor.parent.id; else var parentId = null;
+        // put the ancestor the same distance away as other children if child is active node
         if (currentNeuron.id == neuron.id) var distance = sceneConfig.child.distance; else var distance = sceneConfig.ancestor.distance;
 
         // co-ords of ancestor are based on its child's co-ords in the scene
         var x = n.angleDistanceX(currentNeuron.parentAngle, distance, scene[currentNeuron.id].x);
         var y = n.angleDistanceY(currentNeuron.parentAngle, distance, scene[currentNeuron.id].y);
 
-        if (typeof scene[ancestor.id] === 'undefined') scene[ancestor.id] = {
-          "parent": parentId,
-          "width": sceneConfig.ancestor.width,
-          "x": x,
-          "y": y,
-          "height": sceneConfig.ancestor.width  // todo: calculate height based on content
-        };
+        // add the ancestor to the scene, along with its children
+        // todo: account for Zii (ancestor child) depth here
+        n.addToScene(scene, ancestor, x, y, sceneConfig.ancestor.width, sceneConfig.ancestor.width);
+        n.addChildrenToScene(scene, ancestor, sceneConfig.zii);
 
-        n.calculateChildPositions(ancestor, sceneConfig);
-
-        // add this ancestor's Zii's to the scene
-        for (var i = 0; i < ancestor.children.length; i++) {
-          var currentZii = ancestor.children[i];
-          var ziiNeuron = this.neurons[currentZii.id];
-
-          // co-ords of Zii based on Zii's parent (i.e. ancestor) position in the scene
-          var x = n.angleDistanceX(ancestor.children[i].angle, sceneConfig.zii.distance, scene[ancestor.id].x);
-          var y = n.angleDistanceY(ancestor.children[i].angle, sceneConfig.zii.distance, scene[ancestor.id].y);
-          if (typeof scene[currentZii.id] === 'undefined') scene[currentZii.id] = {
-            "parent": ancestor.id,
-            "width": sceneConfig.zii.width,
-            "x": x,
-            "y": y,
-            "height": sceneConfig.zii.width     // todo: calculate height based on whatever
-          }
-        }
-
-        processingNeuron.id = ancestor.id;
-      } else {
-        a = ancestorDepth;
+        processingNeuron.id = ancestor.id;  // process the next ancestor
+      } else {  // break the loop if no more ancestors
+        a = sceneConfig.ancestor.depth;
       }
     }
 
-    return scene;
+    return scene; // scene is complete - contains active neuron, its children, and necessary levels of ancestors and their children
   };
 
   //--------------------------
@@ -231,7 +187,7 @@ module.exports = function(config) {
   return new Conscipt(config);
 };
 },{"./config":2,"./dom":4,"./map":5,"./neuron":6,"./view":7}],4:[function(require,module,exports){
-// dom.js
+// dom.js - init dom based on config
 
 // init dom based on config passed, creating elements as required
 module.exports.init = function(config) {
@@ -308,7 +264,7 @@ module.exports = Map;
 function Map(parent, mapDivId, containerDivId) {
   var self = this;
 
-  this.parent = parent;
+  this.parent = parent;     // reference to Conscipt instance (so parent.neurons etc can be accessed)
   this.activeScene = {};    // object to store details of visible neurons to be animated from when a new scene is rendered
   this.width = 0, this.height = 0, this.widthSF = 0, this.heightSF = 0;
 
@@ -319,8 +275,7 @@ function Map(parent, mapDivId, containerDivId) {
     "id": mapDivId,
     "parent": containerDivId,
     "style": {
-      "display": "inline-block",
-      "border": "solid 3px #d4d4d4"
+      "border": "solid 1px #d4d4d4"
     }
   });
 
@@ -328,7 +283,7 @@ function Map(parent, mapDivId, containerDivId) {
     self.resize();
   }, true);
 
-  this.canvas = initCanvas(this.div, this.width, this.height);
+  this.canvas = Raphael(this.div, this.width, this.height);
 };
 
 // todo: ensure all old neurons get deleted - the reference to them too etc
@@ -360,12 +315,14 @@ Map.prototype.render = function(scene) {
       var height = scene[n].width * this.heightSF;
       var x = (scene[n].x * this.widthSF) - (width / 2);
       var y = (scene[n].y * this.heightSF) - (height / 2);
+      var fill = (scene[n].fill);
 
       visibleNeuron.rect.animate({
         "x": x,
         "y": y,
         "width": width, // todo: function to calculate width w/ SF
-        "height": height // todo: put height in here!
+        "height": height, // todo: put height in here!
+        "fill": fill
         // todo: insert code to move the neuron to its new position and size
       }, 500, "linear");
 
@@ -374,7 +331,6 @@ Map.prototype.render = function(scene) {
     // move currently-visible neurons to their new positions (and sizes)
   }
 
-  // this.canvas.clear();        // for now just clear the canvas, eventually will go through and animate etc
   // create neurons that aren't already visible
   for (var n in scene) {
     if (typeof this.activeScene[n] === 'undefined') {
@@ -438,88 +394,93 @@ Map.prototype.calculateSize = function(containerDivId) {
 //-------------------------
 Map.prototype.resize = function() {
   this.calculateSize();
-  resizeCanvas(this);
+  this.canvas.setSize(this.width, this.height);
   this.render(this.activeScene);
-  // todo: refactor the rescaling content into a redraw type of function -> limit calls to it / check how often it is called
-  // todo: also rescaling content
   // todo: dealing with responsive?
 };
 
-//----------------------
-// Raphael functions
-// -
-// functions which depend on Raphael library - i.e. if we change from Raphael these are what we need to change
-//----------------------
-var initCanvas = function(div, width, height) {
-  return Raphael(div, width, height);
-};
 
-var resizeCanvas = function(map) {
-  map.canvas.setSize(map.width, map.height);
-};
 },{"./dom":4,"raphael":9}],6:[function(require,module,exports){
 // neuron.js - stuff pertaining to neuron(s) - angles, positions, etc
 
 var neuron = {};
 
-//-------------------------------
-// neuron.addChildArrays(neurons)
+//------------------------------
+// neuron.addChildrenToScene(scene, neuron, sceneConfig)
 // -
-// Adds a reference to neuron in that neuron's parent_id neuron's children array
-// Or in other words, creates an array of children in all neurons referred to as parent_id
-//-------------------------------
-neuron.addChildArrays = function(neurons) {
-  for (var n in neurons) {
-    var currentNeuron = neurons[n];
-    if (typeof currentNeuron.children === 'undefined') currentNeuron.children = [];
-    if (typeof currentNeuron.parent_id !== 'undefined' || typeof currentNeuron.parent !== 'undefined') {
-      if (typeof currentNeuron.parent !== 'undefined') var parentId = currentNeuron.parent.id; else var parentId = currentNeuron.parent_id;
-      if (typeof neurons[parentId].children === 'undefined') neurons[parentId].children = [];
-      if (typeof neurons[parentId].children[n] === 'undefined') neurons[parentId].children.push({"id": n});
-    }
-  }
-};
+// Add neuron's children to scene, including calculating their positions based on angle and distance in sceneConfig
+//------------------------------
+// todo: instead of using children array to store position, just have a parent angle on each neuron which is used to calculate position in any scene
+neuron.addChildrenToScene = function(scene, parentNeuron, sceneConfig, fill) {
+  var distance = sceneConfig.distance || 10;
+  var fill = fill || "#ffffff";
 
-//-------------------------------
-// neuron.addNeuronIds(neurons)
-// -
-// adds id field to each neuron object so it can be identified when being passed around
-//-------------------------------
-neuron.addNeuronIds = function(neurons) {
-  for (var n in neurons) {
-    var currentNeuron = neurons[n];
-    currentNeuron.id = n;
+  this.calculateChildAngles(parentNeuron);
+
+  // add child neurons (single level for now) to the scene
+  for (var i = 0; i < parentNeuron.children.length; i++) {
+
+    var currentChild = parentNeuron.children[i];          // array related to this specific neuron, with positions
+    var neuronObj = this.neurons[currentChild.id];        // actual neuron object of child
+
+    var x = this.angleDistanceX(parentNeuron.children[i].angle, distance, scene[parentNeuron.id].x);
+    var y = this.angleDistanceY(parentNeuron.children[i].angle, distance, scene[parentNeuron.id].y);
+
+    this.addToScene(scene, neuronObj, x, y, sceneConfig.width, sceneConfig.width, fill);
   }
-};
+}
 
 //------------------------------
-// neuron.addParents(neurons)
+// neuron.addToScene(scene, neuronId, x, y, width, height)
 // -
-// Adds pointer to the parent object of each neuron so neuron.parent can be accessed
+// Adds a neuron to a scene with the given width, height, x, y
 //------------------------------
-neuron.addParents = function(neurons) {
-  for (var n in neurons) {
-    if (typeof neurons[n].parent_id !== 'undefined') {
-      var parentNeuronId = neurons[n].parent_id;
-      neurons[n].parent = neurons[parentNeuronId];
-      delete neurons[n].parent_id;
-    }
-  }
-};
+neuron.addToScene = function(scene, neuron, x, y, width, height, fill) {
+  // default config:
+  var width = width || 10;
+  var height = height || 10;
+  var x = x || 50;
+  var y = y || 50;
+  if (typeof neuron.style !== 'undefined') var style = this.styles[neuron.style]; else var style = this.styles['default'];
+
+  if (typeof neuron.parent !== 'undefined') var parentId = neuron.parent.id; else var parentId = null;
+
+  if (typeof scene[neuron.id] === 'undefined') scene[neuron.id] = {
+    "parent": parentId,
+    "width": width,
+    "height": height,
+    "x": x,
+    "y": y,
+    "fill": style.fill
+  };
+}
+
+//------------------------------
+// neuron.angleDistanceX(angle, distance, x)
+// -
+// returns an x position given an angle, distance, and x
+//------------------------------
+neuron.angleDistanceX = function(angle, distance, x) {
+  return Math.cos(((angle + 270) % 360) * Math.PI / 180) * distance + x;
+}
+
+//------------------------------
+// neuron.angleDistanceY(angle, distance, y)
+// -
+// returns a y position given an angle, distance, and y
+//------------------------------
+neuron.angleDistanceY = function(angle, distance, y) {
+  return Math.sin(((angle + 270) % 360) * Math.PI / 180) * distance + y;
+}
 
 //-------------------------------
-// neuron.calculateChildPositions(neuron)
+// neuron.calculateChildAngles(neuron)
 // -
 // calculates (updates in neuron.children) the angles of each child
 //-------------------------------
-neuron.calculateChildPositions = function(neuron, sceneConfig) {
-  var sceneConfig = neuron.sceneConfig || sceneConfig;
-  var x = sceneConfig.active.x;               // the x, y of the active neuron
-  var y = sceneConfig.active.y;               // (i.e. the one we are calculating the children of)
-  var distance = sceneConfig.child.distance;  // distance from active neuron
-
-  if (typeof neuron.calculatedChildPositions === 'undefined') {
-    neuron.parentAngle = this.getParentAngle(neuron, sceneConfig);
+neuron.calculateChildAngles = function(neuron) {
+  if (typeof neuron.calculatedChildAngles === 'undefined') {
+    neuron.parentAngle = this.getParentAngle(neuron);
     var angle = this.getAngleBetweenChildren(neuron);
     // iterate through the children, set the angle incorporating parent angle
     for (var i = 0; i < neuron.children.length; i++) {
@@ -528,26 +489,10 @@ neuron.calculateChildPositions = function(neuron, sceneConfig) {
         else neuron.children[i].angle = (neuron.parentAngle + 90) + angle * i; // if parentAngle, distribute 180 starting at parentAngle + 90
         neuron.children[i].angle %= 360;                        // keep angles within 360 range
       }
-      if (typeof neuron.children[i].x === 'undefined' && typeof neuron.children[i].y === 'undefined') { // only calculate positions if not already calculated
-        var plotAngle = neuron.children[i].angle; // reorient angle so 0 is at top
-        // calculate the actual positions
-        neuron.children[i].x = this.angleDistanceX(plotAngle, distance, x);
-        neuron.children[i].y = this.angleDistanceY(plotAngle, distance, y);
-      }
     }
-    neuron.calculatedChildPositions = true;
+    neuron.calculatedChildAngles = true;
   }
 };
-
-// return x position given an angle, distance and x
-neuron.angleDistanceX = function(angle, distance, x) {
-  return Math.cos(((angle + 270) % 360) * Math.PI / 180) * distance + x;
-}
-
-// return y position given angle, distance and y
-neuron.angleDistanceY = function(angle, distance, y) {
-  return Math.sin(((angle + 270) % 360) * Math.PI / 180) * distance + y;
-}
 
 //------------------------------
 // neuron.getAngleBetweenChildren
@@ -572,11 +517,11 @@ neuron.getAngleBetweenChildren = function(neuron) {
 // -
 // returns angle from neuron to parent (if it has) or returns false
 //------------------------------
-neuron.getParentAngle = function(neuron, sceneConfig) {
+neuron.getParentAngle = function(neuron) {
   var parentAngle = false;    // default angle when no parent (first node)
   if (typeof neuron.parent !== 'undefined') {
     // if neuron has parent, calculate parent's child positions so we can determine parent angle (will recursively call self until reaching a neuron with no parent)
-    if (typeof neuron.parent.calculatedChildPositions === 'undefined') this.calculateChildPositions(neuron.parent, sceneConfig);
+    if (typeof neuron.parent.calculatedChildAngles === 'undefined') this.calculateChildAngles(neuron.parent);
     for (var i = 0; i < neuron.parent.children.length; i++) {
       if (neuron.parent.children[i].id == neuron.id) {
         var parentAngle = neuron.parent.children[i].angle + 180; // child angle + 180 = parent angle is reverse of child angle
@@ -592,27 +537,59 @@ neuron.getParentAngle = function(neuron, sceneConfig) {
 // -
 // updates structure of neurons, adding parent object, children arrays, and neuron ids
 //--------------------------------
-neuron.init = function(neurons) {
-  this.addChildArrays(neurons);
-  this.addNeuronIds(neurons);
-  this.addParents(neurons);
+neuron.init = function(neurons, styles) {
+  this.neurons = neurons;   // make neurons accessible by other functions here
+  this.styles = styles;     // make neuron styles available here
+
+  for (var n in neurons) {
+    var currentNeuron = neurons[n];   // add id field to neuron
+    currentNeuron.id = n; 
+
+    // add children array to neuron
+    if (typeof currentNeuron.children === 'undefined') currentNeuron.children = [];
+    if (typeof currentNeuron.parent_id !== 'undefined') {
+
+      // add pointer to parent object to neuron, remove 'parent_id'
+      neurons[n].parent = neurons[currentNeuron.parent_id];
+      delete neurons[n].parent_id;
+
+      // add this neuron to its parent's children array
+      if (typeof currentNeuron.parent.children === 'undefined') currentNeuron.parent.children = [];
+      if (typeof currentNeuron.parent.children[n] === 'undefined') currentNeuron.parent.children.push({"id": n});
+    }
+  }
 };
 
 module.exports = neuron;
 },{}],7:[function(require,module,exports){
 // view.js
 
+var dom = require('./dom');
 
 module.exports = View;
 
 // view constructor
-function View(parent) {
+function View(parent, viewDivId, containerDivId) {
   
   this.parent = parent;
-
+  
+  // create div in dom
+  this.div = dom.addChildDiv({
+    "id": viewDivId,
+    "parent": containerDivId,
+    "style": {
+      "display": "none",
+      "height": "100%",
+      "left": "50%",
+      "position": "absolute",
+      "top": "0",
+      "width": "50%"
+    }
+  });
 
 };
-},{}],8:[function(require,module,exports){
+
+},{"./dom":4}],8:[function(require,module,exports){
 'use strict';
 
 var hasOwn = Object.prototype.hasOwnProperty;

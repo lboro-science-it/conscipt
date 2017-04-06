@@ -15,7 +15,7 @@ module.exports = Map;
 function Map(parent, mapDivId, containerDivId) {
   var self = this;
 
-  this.parent = parent;
+  this.parent = parent;     // reference to Conscipt instance (so parent.neurons etc can be accessed)
   this.activeScene = {};    // object to store details of visible neurons to be animated from when a new scene is rendered
   this.width = 0, this.height = 0, this.widthSF = 0, this.heightSF = 0;
 
@@ -26,8 +26,7 @@ function Map(parent, mapDivId, containerDivId) {
     "id": mapDivId,
     "parent": containerDivId,
     "style": {
-      "display": "inline-block",
-      "border": "solid 3px #d4d4d4"
+      "border": "solid 1px #d4d4d4"
     }
   });
 
@@ -35,7 +34,7 @@ function Map(parent, mapDivId, containerDivId) {
     self.resize();
   }, true);
 
-  this.canvas = initCanvas(this.div, this.width, this.height);
+  this.canvas = Raphael(this.div, this.width, this.height);
 };
 
 // todo: ensure all old neurons get deleted - the reference to them too etc
@@ -67,12 +66,14 @@ Map.prototype.render = function(scene) {
       var height = scene[n].width * this.heightSF;
       var x = (scene[n].x * this.widthSF) - (width / 2);
       var y = (scene[n].y * this.heightSF) - (height / 2);
+      var fill = (scene[n].fill);
 
       visibleNeuron.rect.animate({
         "x": x,
         "y": y,
         "width": width, // todo: function to calculate width w/ SF
-        "height": height // todo: put height in here!
+        "height": height, // todo: put height in here!
+        "fill": fill
         // todo: insert code to move the neuron to its new position and size
       }, 500, "linear");
 
@@ -81,7 +82,6 @@ Map.prototype.render = function(scene) {
     // move currently-visible neurons to their new positions (and sizes)
   }
 
-  // this.canvas.clear();        // for now just clear the canvas, eventually will go through and animate etc
   // create neurons that aren't already visible
   for (var n in scene) {
     if (typeof this.activeScene[n] === 'undefined') {
@@ -145,22 +145,8 @@ Map.prototype.calculateSize = function(containerDivId) {
 //-------------------------
 Map.prototype.resize = function() {
   this.calculateSize();
-  resizeCanvas(this);
+  this.canvas.setSize(this.width, this.height);
   this.render(this.activeScene);
-  // todo: refactor the rescaling content into a redraw type of function -> limit calls to it / check how often it is called
-  // todo: also rescaling content
   // todo: dealing with responsive?
 };
 
-//----------------------
-// Raphael functions
-// -
-// functions which depend on Raphael library - i.e. if we change from Raphael these are what we need to change
-//----------------------
-var initCanvas = function(div, width, height) {
-  return Raphael(div, width, height);
-};
-
-var resizeCanvas = function(map) {
-  map.canvas.setSize(map.width, map.height);
-};

@@ -1,4 +1,4 @@
-// config.js
+// config.js - defaults which get merged with whatever config is passed
 
 var extend = require('extend');
 
@@ -15,6 +15,7 @@ module.exports = {
     "dom": {
       "body": {
         "style": {
+          "background": "#fffff0",
           "height": "100%",
           "margin": "0"
         }
@@ -55,6 +56,12 @@ module.exports = {
         "width": 2      // how wide to draw em
       }
     },
+    "styles": {
+      "default": {
+        "border-color": "#000000",
+        "fill": "#ffffff"
+      }
+    }
   },
   // merge passed config with defaults
   merge: function(config) {
