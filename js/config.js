@@ -8,7 +8,6 @@ module.exports = {
       "id": "conscipt",
       "style": {
         "height": "100%",
-        "textAlign": "center",
         "width": "100%"
       }
     },
