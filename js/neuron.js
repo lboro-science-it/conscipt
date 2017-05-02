@@ -48,7 +48,8 @@ neuron.addToScene = function(scene, neuron, x, y, width, height, fill) {
     "height": height,
     "x": x,
     "y": y,
-    "fill": style.fill
+    "fill": style.fill,
+    "border": style["border-color"]
   };
 }
 

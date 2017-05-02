@@ -83,10 +83,12 @@ Map.prototype.render = function(scene) {
 
   // todo: animation sequencing
   // 1. remove visible neurons that are no longer present (animate furthest out children into their parents)
-  // 2. move the currently active neuron to be 'docked' to its parent as its siblings are
-  // 3. move the whole structure so the new active neuron is centred
-  // 4. enlarge the new active neuron
+  // 2. move the currently active neuron to be 'docked' to its parent as its siblings are (unless it is main)
+  // 3. move the whole structure so the new active neuron is centred - also resizing as necessary
+  // 4. enlarge the new active neuron (probably as part of above is fine)
   // 5. animate in any required new neurons (clockwise)
+
+  // todo: with removing visible neurons, first start at the furthest out level, animate those out, then work at the next level, animate those out, and so on.
 
   // check activeScene vs scene
   for (var n in this.activeScene) {
@@ -135,15 +137,17 @@ Map.prototype.render = function(scene) {
 
       var currentNeuron = scene[n];
 
-                  // todo: don't create rect if it is already present!
+      // todo: don't create rect if it is already present!
       var width = currentNeuron.width * this.widthSF;
       var height = currentNeuron.width * this.heightSF;   // todo: calculate height based on content (elsewhere)
       var x = (currentNeuron.x * this.widthSF) - (width / 2);
       var y = (currentNeuron.y * this.heightSF) - (height / 2);
       var fill = currentNeuron.fill || "#fff";
+      var border = currentNeuron.border || "#000";
+      console.log(border);
 
       this.activeScene[n].rect = this.canvas.rect(x, y, width, height)
-                            .attr({fill: fill})
+                            .attr({fill: fill, stroke: border})
                             .data("n", n)
                             .click(function() {
                               self.parent.activate(this.data("n"));

@@ -58,7 +58,7 @@ module.exports = {
     "styles": {
       "default": {
         "border-color": "#000000",
-        "fill": "#ffffff"
+        "fill": "#fffff0"
       }
     }
   },

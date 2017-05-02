@@ -1,4 +1,4 @@
-// conscipt.js - all stuff about init the neuron structure, controller, etc
+// conscipt.js - init the neuron structure, controller, etc
 
 var defaults = require('./config'); // merge default config with passed
 var dom = require('./dom');         // dom, create div, etc
