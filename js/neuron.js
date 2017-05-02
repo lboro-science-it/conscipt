@@ -1,8 +1,8 @@
-// neuron.js - stuff pertaining to neuron(s) - angles, positions, etc
+// neuron.js - stuff pertaining to neuron(s) - angles, positions, scenes, etc
 
 var async = require('async');
 
-var neuron = {};
+var neuron = {};    // object to hold class functions
 
 //------------------------------
 // neuron.addAncestorsToScene(scene, neuron, config, callback)

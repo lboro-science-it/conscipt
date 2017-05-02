@@ -111,25 +111,20 @@ module.exports = function(config) {
   // make neuron object the active neuron, rendering its scene (after calculating if needed)
   Conscipt.prototype.activate = function(neuron) {
     var map = this.map;
+
     if (this.activeNeuron !== neuron) {   // only activate if not already active
       console.log(this);
-      this.activeNeuron = neuron;
-      this.getScene(neuron, function(scene) {
-        map.render(scene);
-      })
-    }
-  };
-
-  // get the scene of neuron, calculating first if necessary
-  Conscipt.prototype.getScene = function(neuron, callback) {
-    if (typeof neuron.scene === 'undefined') {  // calculate neuron.scene if it needs to be calculated
-      neuron.scene = {};
-      var sceneConfig = neuron.sceneConfig || this.config.scene;  // get neuron specific config if exists, or global if not
-      n.calculateScene(neuron, sceneConfig, function() {
-        callback(neuron.scene);
-      });
-    } else {
-      callback(neuron.scene);
+      this.activeNeuron = neuron;      
+      // only calculate the scene if it needs to be calculated
+      if (typeof neuron.scene === 'undefined') {
+        neuron.scene = {};
+        var sceneConfig = neuron.sceneConfig || this.config.scene;
+        n.calculateScene(neuron, sceneConfig, function() {
+          map.render(neuron.scene);
+        });
+      } else {
+        map.render(neuron.scene);
+      }
     }
   };
 
@@ -397,11 +392,11 @@ Map.prototype.resize = function() {
   // todo: dealing with responsive?
 };
 },{"./dom":4,"raphael":10}],6:[function(require,module,exports){
-// neuron.js - stuff pertaining to neuron(s) - angles, positions, etc
+// neuron.js - stuff pertaining to neuron(s) - angles, positions, scenes, etc
 
 var async = require('async');
 
-var neuron = {};
+var neuron = {};    // object to hold class functions
 
 //------------------------------
 // neuron.addAncestorsToScene(scene, neuron, config, callback)
