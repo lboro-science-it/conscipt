@@ -144,13 +144,12 @@ Map.prototype.render = function(scene) {
       var y = (currentNeuron.y * this.heightSF) - (height / 2);
       var fill = currentNeuron.fill || "#fff";
       var border = currentNeuron.border || "#000";
-      console.log(border);
 
       this.activeScene[n].rect = this.canvas.rect(x, y, width, height)
                             .attr({fill: fill, stroke: border})
                             .data("n", n)
                             .click(function() {
-                              self.parent.activate(this.data("n"));
+                              self.parent.activate(self.parent.neurons[this.data("n")]);
                             });
     }
   }

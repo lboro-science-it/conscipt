@@ -1,6 +1,56 @@
 // neuron.js - stuff pertaining to neuron(s) - angles, positions, etc
 
+var async = require('async');
+
 var neuron = {};
+
+//------------------------------
+// neuron.addAncestorsToScene(scene, neuron, config, callback)
+// -
+// add the ancestor of neuron to scene, depending on config
+//------------------------------
+neuron.addAncestorsToScene = function(scene, neuron, config, callback) {
+  var processingNeuron = {id: neuron.id};     // keep track of the neuron we're currently processing - for multiple levels of ancestors
+  var neurons = this.neurons;
+  var self = this;
+
+  // process ancestors of neuron up to depth specified in config
+  var depth = config.ancestor.depth || 0;
+  var currentAncestorLevel = 0;
+
+  async.whilst(
+    function() { return currentAncestorLevel < depth; },
+    function(callback) {  
+      var currentNeuron = neurons[processingNeuron.id];
+      if (typeof currentNeuron.parent !== 'undefined') {  // get ancestor neuron of current neuron if it exists
+        var ancestor = neurons[currentNeuron.parent.id];
+        // distance to use depends on whether this is ancestor of an active node or not
+        if (currentNeuron.id == neuron.id) var distance = config.child.distance;
+        else var distance = config.ancestor.distance;
+
+        // calculate co-ords of ancestor based on its child's co-ords in the scene
+        var x = self.angleDistanceX(currentNeuron.parentAngle, distance, scene[currentNeuron.id].x);
+        var y = self.angleDistanceY(currentNeuron.parentAngle, distance, scene[currentNeuron.id].y);
+
+        // add ancestor to the scene
+        self.addToScene(scene, ancestor, x, y, config.ancestor.width, config.ancestor.height);
+        self.addChildrenToScene(scene, ancestor, config.zii);
+
+        processingNeuron.id = ancestor.id;    // process the next ancestor now
+      } else {
+        // if the current Neuron doesn't have a parent then we can break the while loop early
+        currentAncestorLevel = depth;
+      }
+      currentAncestorLevel++;
+      callback();
+    },
+    function() {
+      // all iterations are complete, in other words the ancestors have all been added
+      callback();
+    }
+  );
+};
+
 
 //------------------------------
 // neuron.addChildrenToScene(scene, neuron, sceneConfig)
@@ -90,6 +140,23 @@ neuron.calculateChildAngles = function(neuron) {
     }
     neuron.calculatedChildAngles = true;
   }
+};
+
+//------------------------------
+// neuron.calculateScene(neuron, config, callback)
+// -
+// calculates scene of neuron based on config
+//------------------------------
+neuron.calculateScene = function(neuron, config, callback) {
+  // add active neuron to scene
+  this.addToScene(neuron.scene, neuron, config.active.x, config.active.y, config.active.width, config.active.height);
+  // add child neurons of active neuron to scene with child config...
+  this.addChildrenToScene(neuron.scene, neuron, config.child);
+  // add ancestor neurons of active neuron to scene with ancestor config
+  this.addAncestorsToScene(neuron.scene, neuron, config, function() {
+    // completed adding ancestors, now call callback
+    callback();
+  });
 };
 
 //------------------------------
