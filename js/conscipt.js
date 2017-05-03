@@ -34,17 +34,17 @@ module.exports = function(config) {
 
     if (this.activeNeuron !== neuron) {   // only activate if not already active
       console.log(this);
-      this.activeNeuron = neuron;      
       // only calculate the scene if it needs to be calculated
       if (typeof neuron.scene === 'undefined') {
         neuron.scene = {};
         var sceneConfig = neuron.sceneConfig || this.config.scene;
         n.calculateScene(neuron, sceneConfig, function() {
-          map.render(neuron.scene);
+          map.render(neuron.scene, neuron);
         });
       } else {
-        map.render(neuron.scene);
+        map.render(neuron.scene, neuron);
       }
+      this.activeNeuron = neuron;      
     }
   };
 

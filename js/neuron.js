@@ -37,15 +37,13 @@ neuron.addAncestorsToScene = function(scene, neuron, config, callback) {
         self.addChildrenToScene(scene, ancestor, config.zii);
 
         processingNeuron.id = ancestor.id;    // process the next ancestor now
-      } else {
-        // if the current Neuron doesn't have a parent then we can break the while loop early
+      } else {    // break if current neuron doesn't have a parent
         currentAncestorLevel = depth;
       }
       currentAncestorLevel++;
       callback();
     },
-    function() {
-      // all iterations are complete, in other words the ancestors have all been added
+    function() {  // all ancestors are added
       callback();
     }
   );
@@ -62,6 +60,7 @@ neuron.addChildrenToScene = function(scene, parentNeuron, sceneConfig, fill) {
   var distance = sceneConfig.distance || 10;
   var fill = fill || "#ffffff";
 
+  // todo: use callbacks here since result is required for following functions
   this.calculateChildAngles(parentNeuron);
 
   // add child neurons (single level for now) to the scene
@@ -88,8 +87,8 @@ neuron.addToScene = function(scene, neuron, x, y, width, height, fill) {
   var height = height || 10;
   var x = x || 50;
   var y = y || 50;
-  if (typeof neuron.style !== 'undefined') var style = this.styles[neuron.style]; else var style = this.styles['default'];
 
+  if (typeof neuron.style !== 'undefined') var style = this.styles[neuron.style]; else var style = this.styles['default'];
   if (typeof neuron.parent !== 'undefined') var parentId = neuron.parent.id; else var parentId = null;
 
   if (typeof scene[neuron.id] === 'undefined') scene[neuron.id] = {
@@ -129,12 +128,11 @@ neuron.angleDistanceY = function(angle, distance, y) {
 neuron.calculateChildAngles = function(neuron) {
   if (typeof neuron.calculatedChildAngles === 'undefined') {
     neuron.parentAngle = this.getParentAngle(neuron);
-    var angle = this.getAngleBetweenChildren(neuron);
-    // iterate through the children, set the angle incorporating parent angle
-    for (var i = 0; i < neuron.children.length; i++) {
+    var spaceInDegrees = this.getAngleBetweenChildren(neuron);
+    for (var i = 0; i < neuron.children.length; i++) {    // iterate children and set angles
       if (typeof neuron.children[i].angle === 'undefined') {    // only calculate angles if not already calculated
-        if (!neuron.parentAngle) neuron.children[i].angle = angle * i;         // if no parentAngle, distribute 360 starting at 0
-        else neuron.children[i].angle = (neuron.parentAngle + 90) + angle * i; // if parentAngle, distribute 180 starting at parentAngle + 90
+        if (!neuron.parentAngle) neuron.children[i].angle = spaceInDegrees * i;         // if no parentAngle, distribute 360 starting at 0
+        else neuron.children[i].angle = (neuron.parentAngle + 90) + spaceInDegrees * i; // if parentAngle, distribute 180 starting at parentAngle + 90
         neuron.children[i].angle %= 360;                        // keep angles within 360 range
       }
     }
@@ -148,14 +146,11 @@ neuron.calculateChildAngles = function(neuron) {
 // calculates scene of neuron based on config
 //------------------------------
 neuron.calculateScene = function(neuron, config, callback) {
-  // add active neuron to scene
+  // add active neuron in active position
   this.addToScene(neuron.scene, neuron, config.active.x, config.active.y, config.active.width, config.active.height);
-  // add child neurons of active neuron to scene with child config...
-  this.addChildrenToScene(neuron.scene, neuron, config.child);
-  // add ancestor neurons of active neuron to scene with ancestor config
-  this.addAncestorsToScene(neuron.scene, neuron, config, function() {
-    // completed adding ancestors, now call callback
-    callback();
+  this.addChildrenToScene(neuron.scene, neuron, config.child);  // add child neurons with child config
+  this.addAncestorsToScene(neuron.scene, neuron, config, function() { // add ancestor neurons with ancestor config
+    callback();     // callback from when calculateScene was called
   });
 };
 
@@ -185,7 +180,7 @@ neuron.getAngleBetweenChildren = function(neuron) {
 neuron.getParentAngle = function(neuron) {
   var parentAngle = false;    // default angle when no parent (first node)
   if (typeof neuron.parent !== 'undefined') {
-    // if neuron has parent, calculate parent's child positions so we can determine parent angle (will recursively call self until reaching a neuron with no parent)
+    // if neuron has parent, determine angle by calculating parent's child positions - recursively calculates all parents
     if (typeof neuron.parent.calculatedChildAngles === 'undefined') this.calculateChildAngles(neuron.parent);
     for (var i = 0; i < neuron.parent.children.length; i++) {
       if (neuron.parent.children[i].id == neuron.id) {
@@ -209,15 +204,9 @@ neuron.init = function(neurons, styles) {
   for (var n in neurons) {
     var currentNeuron = neurons[n];   // add id field to neuron
     currentNeuron.id = n; 
-
-    // add children array to neuron
-    if (typeof currentNeuron.children === 'undefined') currentNeuron.children = [];
-    if (typeof currentNeuron.parent_id !== 'undefined') {
-
-      // add pointer to parent object to neuron, remove 'parent_id'
+    if (typeof currentNeuron.children === 'undefined') currentNeuron.children = []; // add children array
+    if (typeof currentNeuron.parent_id !== 'undefined') { // add parent object pointer if neuron has parent
       neurons[n].parent = neurons[currentNeuron.parent_id];
-      delete neurons[n].parent_id;
-
       // add this neuron to its parent's children array
       if (typeof currentNeuron.parent.children === 'undefined') currentNeuron.parent.children = [];
       if (typeof currentNeuron.parent.children[n] === 'undefined') currentNeuron.parent.children.push({"id": n});
