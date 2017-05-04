@@ -2,7 +2,7 @@
 
 var defaults = require('./config'); // merge default config with passed
 var dom = require('./dom');         // dom, create div, etc
-var Map = require('./map');         // deals with rendering a scene
+var Map = require('./newMap');      // deals with rendering a scene
 var n = require('./neuron');        // deals with neuron related stuff (angles, positions, etc)
 var View = require('./view');       // deals with rendering a view (resource)
 
@@ -44,7 +44,7 @@ module.exports = function(config) {
       } else {
         map.render(neuron);
       }
-      map.activeNeuron = this.activeNeuron = neuron;      
+      this.activeNeuron = neuron;      
     }
   };
 

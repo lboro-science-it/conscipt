@@ -92,6 +92,7 @@ neuron.addToScene = function(scene, neuron, x, y, width, height, fill) {
   if (typeof neuron.parent !== 'undefined') var parentId = neuron.parent.id; else var parentId = null;
 
   if (typeof scene[neuron.id] === 'undefined') scene[neuron.id] = {
+    "id": neuron.id,
     "parent": parentId,
     "width": width,
     "height": height,
