@@ -39,12 +39,12 @@ module.exports = function(config) {
         neuron.scene = {};
         var sceneConfig = neuron.sceneConfig || this.config.scene;
         n.calculateScene(neuron, sceneConfig, function() {
-          map.render(neuron.scene, neuron);
+          map.render(neuron);
         });
       } else {
-        map.render(neuron.scene, neuron);
+        map.render(neuron);
       }
-      this.activeNeuron = neuron;      
+      map.activeNeuron = this.activeNeuron = neuron;      
     }
   };
 

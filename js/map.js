@@ -21,6 +21,8 @@ function Map(parent, mapDivId, containerDivId) {
   this.lowestX = 0, this.greatestX = 0, this.greatestY = 0, this.lowestY = 0;
   this.connections = [];    // obj to store connections between neurons in format parent: child: 
   this.neurons = this.parent.neurons;
+  this.activeNeuron = {};
+  this.renderingNeuron = {};
 
   this.calculateSize(this.parent.div.id);
 
@@ -39,7 +41,7 @@ function Map(parent, mapDivId, containerDivId) {
 // -
 // Works through neurons, an object of animation attributes, and after the last one, calls callback
 //---------------------------
-Map.prototype.animateAdd = function(neurons, scene, callback, iteration) {
+Map.prototype.animateAdd = function(neurons, callback, iteration) {
   var self = this;
   if (typeof iteration === 'undefined') var iteration = 0;
 
@@ -56,9 +58,7 @@ Map.prototype.animateAdd = function(neurons, scene, callback, iteration) {
         x: animation.x + animation.width / 2,
         y: animation.y + animation.height / 2
       };
-      console.log(neurons[iteration].id);
-      console.log(from.x + ", " + from.y + " to " + to.x + ", " + to.y);
-      self.connections[neurons[iteration].id] = self.canvas.path("M" + from.x + " " + from.y).toBack();
+      self.connections[neurons[iteration].id] = self.canvas.path("M" + from.x + " " + from.y).attr({stroke: animation.border}).toBack();
       self.connections[neurons[iteration].id].animate({path: "M" + from.x + " " + from.y + "L" + to.x + ", " + to.y}, 500);
     }
 
@@ -74,7 +74,7 @@ Map.prototype.animateAdd = function(neurons, scene, callback, iteration) {
 
     if (iteration + 1 < neurons.length) {
       setTimeout(function() {
-        self.animateAdd(neurons, scene, callback, iteration + 1);
+        self.animateAdd(neurons, callback, iteration + 1);
       }, 100);
     }
   } else callback();
@@ -85,7 +85,7 @@ Map.prototype.animateAdd = function(neurons, scene, callback, iteration) {
 // -
 // Works through neurons, an object of animation attributes, and after the last one, calls callback
 //---------------------------
-Map.prototype.animateMove = function(neurons, scene, callback, iteration) {
+Map.prototype.animateMove = function(neurons, callback, iteration) {
 
   if (neurons.length > 0) {
     if (typeof iteration === 'undefined') var iteration = 0;
@@ -95,28 +95,7 @@ Map.prototype.animateMove = function(neurons, scene, callback, iteration) {
       var neuronToAnimate = this.activeScene[animation.id];
 
       if (typeof this.connections[animation.id] !== 'undefined') {
-        var translate = {
-          x: animation.x - neuronToAnimate.rect.attrs.x,
-          y: animation.y - neuronToAnimate.rect.attrs.y
-        };
 
-        var parentObj = this.neurons[animation.id].parent.id;
-        var parentToAnimate = this.activeScene[parentObj.id];
-
-        var neuronCurrentPos = {
-          x: neuronToAnimate.rect.attrs.x,
-          y: neuronToAnimate.rect.attrs.y
-        };
-
-        // neuron current position == neuronToAnimate.rect.attrs.x
-        // parent current position == parentToAnimate.rect.attrs.x
-        // neuron new position == animation.x, animation.y
-        // parent new position == scene[parent.id].x, scene[parent.id].y
-
-        var scale;
-
-        // transformWidth = difference between the two in currentscene vs in new scene as a proportion
-        this.connections[neurons[iteration].id].animate({transform:"t" + translate.x + "," + translate.y}, 500);
       }
 
       neuronToAnimate.rect.animate({
@@ -130,7 +109,7 @@ Map.prototype.animateMove = function(neurons, scene, callback, iteration) {
         if (iteration + 1 == neurons.length) callback();  // callback only gets called when the last one is done
       });
       if (iteration + 1 < neurons.length) {
-        this.animateMove(neurons, scene, callback, iteration + 1);
+        this.animateMove(neurons, callback, iteration + 1);
       }
     }
   } else callback();
@@ -141,19 +120,26 @@ Map.prototype.animateMove = function(neurons, scene, callback, iteration) {
 // -
 // Sequentially animate the removal of neurons, then call callback
 //------------------------
-Map.prototype.animateRemove = function(ids, scene, callback, iteration) {
+Map.prototype.animateRemove = function(ids, callback, iteration) {
   if (ids.length > 0) {
     var self = this;
     if (typeof iteration === 'undefined') var iteration = 0;
     if (typeof ids[iteration] !== 'undefined') {
       var neuronToDelete = self.activeScene[ids[iteration]];  // contains the rect 
       var neuronObj = self.parent.neurons[ids[iteration]];
+
       if (typeof neuronObj.parent !== undefined) {  // get centre of x and y of parent, where the neuron will be animated to
         x = self.activeScene[neuronObj.parent.id].rect.attrs.x + self.activeScene[neuronObj.parent.id].rect.attrs.width / 2;
         y = self.activeScene[neuronObj.parent.id].rect.attrs.y + self.activeScene[neuronObj.parent.id].rect.attrs.height / 2;
       } else {    // simply animate the neuron to its own centre
         x = self.activeScene[neuronObj.id].rect.attrs.x;
         y = self.activeScene[neuronObj.id].rect.attrs.y;
+      }
+
+      // remove connecting lines, todo animate them out
+      if (typeof self.connections[ids[iteration]] !== 'undefined') {
+        self.connections[ids[iteration]].remove();
+        delete self.connections[ids[iteration]];
       }
 
       neuronToDelete.rect.animate({
@@ -170,7 +156,7 @@ Map.prototype.animateRemove = function(ids, scene, callback, iteration) {
       // if there is another neuron to animateRemove
       if (iteration + 1 < ids.length) {
         setTimeout(function() {
-          self.animateRemove(ids, scene, callback, iteration + 1);
+          self.animateRemove(ids, callback, iteration + 1);
         }, 100);
       }
     }
@@ -217,27 +203,29 @@ Map.prototype.findChildrenToRemove = function(neuron, activeNeuron, newScene, re
 // -
 // Animate from this.activeScene to scene, where neuron is the new active neuron
 //------------------------
-Map.prototype.render = function(scene, neuron) {
+Map.prototype.render = function(neuron) {
   var self = this;
-  var activeNeuron = this.parent.activeNeuron;
+  var renderingNeuron = self.renderingNeuron = neuron;
+  var renderingScene = renderingNeuron.scene;
+  var activeNeuron = this.activeNeuron;
   this.greatestX = 0, this.lowestX = 100, this.greatestY = 0, this.lowestY = 100;
   var animations = { remove: [], anchor: [], move: [], add: [] };
 
   async.series([          // animation block
     function(callback) {  // check what neurons need to be removed from scene, in order
-      self.findChildrenToRemove(activeNeuron, activeNeuron, scene, false, function(child) {
+      self.findChildrenToRemove(activeNeuron, activeNeuron, renderingScene, false, function(child) {
         animations.remove.push(child.id);
       });
       callback();
     },
     function(callback) {  // check what ancestors need to be removed from the scene
-      self.findAncestorsToRemove(activeNeuron, activeNeuron, scene, false, function(ancestor) {
+      self.findAncestorsToRemove(activeNeuron, activeNeuron, renderingScene, false, function(ancestor) {
         animations.remove.push(ancestor.id);
       });
       callback();
     },
     function(callback) {  // animate the removals
-      self.animateRemove(animations.remove, scene, function() {
+      self.animateRemove(animations.remove, function() {
         callback();
       });
     },
@@ -246,28 +234,28 @@ Map.prototype.render = function(scene, neuron) {
         // calculate difference between new active neuron's position in new scene and current scene
         var activeScene = self.parent.neurons[activeNeuron.id].scene;
 
-        var offsetX = activeScene[neuron.id].x - scene[neuron.id].x;
-        var offsetY = activeScene[neuron.id].y - scene[neuron.id].y;
+        var offsetX = activeScene[neuron.id].x - renderingScene[neuron.id].x;
+        var offsetY = activeScene[neuron.id].y - renderingScene[neuron.id].y;
 
         for (var n in self.activeScene) {
-          if (typeof scene[n] !== 'undefined') {
+          if (typeof renderingScene[n] !== 'undefined') {
             animations.anchor.push({
               id: n,
-              x: ((scene[n].x * self.widthSF) - ((scene[n].width * self.widthSF) / 2) + offsetX * self.widthSF),
-              y: ((scene[n].y * self.heightSF) - ((scene[n].width * self.heightSF) / 2) + offsetY * self.heightSF),
-              width: (scene[n].width * self.widthSF),
-              height: (scene[n].width * self.heightSF),
-              fill: scene[n].fill,
-              border: scene[n].border
+              x: ((renderingScene[n].x * self.widthSF) - ((renderingScene[n].width * self.widthSF) / 2) + offsetX * self.widthSF),
+              y: ((renderingScene[n].y * self.heightSF) - ((renderingScene[n].width * self.heightSF) / 2) + offsetY * self.heightSF),
+              width: (renderingScene[n].width * self.widthSF),
+              height: (renderingScene[n].width * self.heightSF),
+              fill: renderingScene[n].fill,
+              border: renderingScene[n].border
             });
             animations.move.push({
               id: n,
-              x: (scene[n].x * self.widthSF) - ((scene[n].width * self.widthSF) / 2),
-              y: (scene[n].y * self.heightSF) - ((scene[n].width * self.heightSF) / 2),   // todo proper height
-              width: (scene[n].width * self.widthSF),
-              height: (scene[n].width * self.heightSF),   // todo proper height
-              fill: scene[n].fill,
-              border: scene[n].border
+              x: (renderingScene[n].x * self.widthSF) - ((renderingScene[n].width * self.widthSF) / 2),
+              y: (renderingScene[n].y * self.heightSF) - ((renderingScene[n].width * self.heightSF) / 2),   // todo proper height
+              width: (renderingScene[n].width * self.widthSF),
+              height: (renderingScene[n].width * self.heightSF),   // todo proper height
+              fill: renderingScene[n].fill,
+              border: renderingScene[n].border
             });
           }
         }
@@ -275,22 +263,22 @@ Map.prototype.render = function(scene, neuron) {
       callback();
     },
     function(callback) {  // move ancestors to new sizes and positions relative to new active neuron
-      self.animateMove(animations.anchor, scene, function() {
+      self.animateMove(animations.anchor, function() {
         callback();
       });
     },
     function(callback) {  // move whole structure to new position (new scene)
-      self.animateMove(animations.move, scene, function() {
+      self.animateMove(animations.move, function() {
         callback();
       });
     },
     function(callback) {  // create new neurons and animate them in
-      for (var n in scene) {
-        self.updateBoundingPoints(n, scene);    // keeps track of leftmost, rightmost, uppermost and lowermost co-ords
+      for (var n in renderingScene) {
+        self.updateBoundingPoints(n, renderingScene);    // keeps track of leftmost, rightmost, uppermost and lowermost co-ords
 
         if (typeof self.activeScene[n] === 'undefined') {
           self.activeScene[n] = {};  // activeScene[n] to store the rect
-          var currentNeuron = scene[n];
+          var currentNeuron = renderingScene[n];
 
           var width = currentNeuron.width * self.widthSF;
           var height = currentNeuron.width * self.heightSF;  // todo: calc height based on content
@@ -300,8 +288,8 @@ Map.prototype.render = function(scene, neuron) {
           var border = currentNeuron.border || "#000";
 
           if (currentNeuron.parent !== null) {
-            x = scene[currentNeuron.parent].x * self.widthSF;
-            y = scene[currentNeuron.parent].y * self.heightSF;
+            x = renderingScene[currentNeuron.parent].x * self.widthSF;
+            y = renderingScene[currentNeuron.parent].y * self.heightSF;
             width = 0;
             height = 0;  // todo: calc height based on content
           }
@@ -331,7 +319,7 @@ Map.prototype.render = function(scene, neuron) {
       callback();
     },
     function(callback) {
-      self.animateAdd(animations.add, scene, function() {
+      self.animateAdd(animations.add, function() {
         callback();
       });
     }
