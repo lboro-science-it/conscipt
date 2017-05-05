@@ -48,6 +48,12 @@ Map.prototype.animateAdd = function(neurons, callback, iteration) {
 
   var neuron = self.neurons[neurons[iteration]];     // neuron object, use to check if it has a parent, so we know how to animate it in
 
+  // todo: first create the text at a given font size, hidden, using size to determine width / height of bounding box
+  // next draw boxes
+  // also draw lines
+  // todo: think of how we will account for hiding text when not child
+  // probably a 'type' property in each scene, indicating whether the neuron is active, child, ancestor, etc in the scene, and therefore whether to display full title, etc
+
   self.activeScene[neuron.id] = extend(true, {}, self.renderingScene[neuron.id]);  // clone the details from renderingScene (co-ords, etc)
 
   var fill = self.renderingScene[neuron.id].fill || "#fff";
@@ -79,6 +85,12 @@ Map.prototype.animateAdd = function(neurons, callback, iteration) {
       if (iteration + 1 == neurons.length) callback();
     });
 
+  var x = self.renderingScene[neuron.id].x * self.widthSF;
+  var y = self.renderingScene[neuron.id].y * self.heightSF;
+
+  self.activeScene[neuron.id].text = self.canvas.text(x, y, neuron.title[0]);
+
+
   if (iteration + 1 < neurons.length) {
     setTimeout(function() {
       self.animateAdd(neurons, callback, iteration + 1);
@@ -99,17 +111,8 @@ Map.prototype.animateAdd = function(neurons, callback, iteration) {
     self.connections[neurons[iteration].id].animate({path: "M" + from.x + " " + from.y + "L" + to.x + ", " + to.y}, 500);
   }
 */
-/*
-  self.activeScene[animation.id].rect.animate({
-    "x": animation.x,
-    "y": animation.y,
-    "width": animation.width,
-    "height": animation.height,
-    "opacity": 100
-  }, 500, "linear", function() {
-    if (iteration + 1 == neurons.length) callback();
-  });
-*/
+
+
 
 };
 
@@ -158,7 +161,6 @@ Map.prototype.animateRemove = function(neurons, callback, iteration) {
   if (typeof iteration === 'undefined') var iteration = 0;
   var neuron = self.neurons[neurons[iteration]];     // neuron object of neuron to delete
   var neuronToDelete = self.activeScene[neuron.id]; // neuron object in scene
-  console.log(neuronToDelete);
 
   var x;
   var y;
@@ -263,7 +265,6 @@ Map.prototype.render = function(neuron) {
     },
     function(callback) {  // animate the removals
       if (animations.remove.length > 0) {
-        console.log(animations.remove);
         self.animateRemove(animations.remove, function() {
           callback();
         });
@@ -274,27 +275,22 @@ Map.prototype.render = function(neuron) {
         // calculate difference between new active neuron's position in new scene and current scene
         var offsetX = self.activeScene[self.renderingNeuron.id].x - self.renderingScene[self.renderingNeuron.id].x;
         var offsetY = self.activeScene[self.renderingNeuron.id].y - self.renderingScene[self.renderingNeuron.id].y;
-        console.log("renderingScene");
-        console.log(self.renderingScene);
-        console.log("offsetX: " + offsetX + ", offsetY: " + offsetY);
+
         async.eachOf(self.activeScene, function(neuron, neuronId, nextNeuron) {
           if (typeof self.renderingScene[neuronId] !== 'undefined') {   // if neuron exists in activeScene and renderingScene, it needs to be moved
-            // neurons should move to where they will be in the new scene + offset;
-            console.log("neuronId: " + neuronId + ", x,y in current scene: " + self.activeScene[neuronId].x + ", " + self.activeScene[neuronId].y);
-
             animations.anchor.push({
               id: neuronId,
               x: (self.renderingScene[neuronId].x - (self.renderingScene[neuronId].width / 2) + offsetX) * self.widthSF,
-              y: (self.renderingScene[neuronId].y - (self.renderingScene[neuronId].height / 2) + offsetY) * self.heightSF,
+              y: (self.renderingScene[neuronId].y - (self.renderingScene[neuronId].width / 2) + offsetY) * self.heightSF,
               width: self.renderingScene[neuronId].width * self.widthSF,
-              height: self.renderingScene[neuronId].height * self.heightSF
+              height: self.renderingScene[neuronId].width * self.heightSF
             });
             animations.move.push({
               id: neuronId,
               x: (self.renderingScene[neuronId].x  - (self.renderingScene[neuronId].width / 2)) * self.widthSF,
-              y: (self.renderingScene[neuronId].y  - (self.renderingScene[neuronId].height / 2)) * self.heightSF,
+              y: (self.renderingScene[neuronId].y  - (self.renderingScene[neuronId].width / 2)) * self.heightSF,
               width: self.renderingScene[neuronId].width * self.widthSF,
-              height: self.renderingScene[neuronId].height * self.heightSF
+              height: self.renderingScene[neuronId].width * self.heightSF   // todo: put proper height here
             });
             nextNeuron();
           } else nextNeuron();
@@ -306,8 +302,6 @@ Map.prototype.render = function(neuron) {
     },
     function(callback) {  // move ancestors to new sizes and positions relative to new active neuron
       if (animations.anchor.length > 0) {
-        console.log("anchor");
-        console.log(animations.anchor);
         self.animateMove(animations.anchor, function() {
           callback();
         });
@@ -315,8 +309,6 @@ Map.prototype.render = function(neuron) {
     },
     function(callback) {  // move whole structure to new position (new scene)
       if (animations.move.length > 0) {
-        console.log("move");
-        console.log(animations.move);
         self.animateMove(animations.move, function() {
           callback();
         });
