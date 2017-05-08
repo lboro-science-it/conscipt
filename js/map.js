@@ -112,6 +112,7 @@ Map.prototype.animateAdd = function(neurons, callback, iteration) {
               latexElem.style.opacity = "0";
               latexElem.innerHTML = latexText;            
               var latexRow = self.canvas.text(x, y, "").attr({
+                "font-size": (lineHeight * self.heightSF) / 2,
                 "opacity": 0
               });          // raphael element          
               self.activeScene[neuron.id].title.push({
@@ -176,6 +177,7 @@ Map.prototype.animateAdd = function(neurons, callback, iteration) {
 // Works through neurons, an object of animation attributes, and after the last one, calls callback
 //---------------------------
 Map.prototype.animateMove = function(animations, callback, iteration) {
+  var self = this;
   if (typeof iteration === 'undefined') var iteration = 0;
 
   var animation = animations[iteration];
@@ -192,27 +194,58 @@ Map.prototype.animateMove = function(animations, callback, iteration) {
     // animate moving the connections here
   }
 
-  // todo: move sizes needs to calculate for line height as per animate add
-/*
-  async.each(neuronToAnimate.title, function(row, nextRow) {
-    if (typeof row.div !== 'undefined') {   // if there is a div we need to link its animation to the raphael element
-      eve.on('raphael.anim.frame.' + row.text.id, onAnimate = function(i) {
-        row.div.opacity = this.attrs.opacity;
-      });
-    }
-    row.text.animate({
-      "opacity": 0
-    }, 500, "linear", function() {
+  //----------
+  // TITLES
+  //----------
+  async.eachOf(neuronToAnimate.title, function(row, index, nextRow) {
+    var opacity = row.text.attrs.x;
+    var fontSize = row.text.attrs["font-size"]
+    if (neuronToAnimate.role == "zii") {      // hide ZII neurons
       if (typeof row.div !== 'undefined') {
-        eve.unbind('raphael.anim.frame.' + row.text.id, onAnimate);
-        row.div.parentNode.removeChild(row.div);
+        eve.on('raphael.anim.frame.' + row.text.id, onAnimate = function(i) {
+          row.div.style.opacity = this.attrs.opacity;
+        });
       }
-      this.remove();
-      delete neuronToDelete.title[index];
-      if (index == neuronToDelete.title.length - 1) nextRow();    // wait until the last elem finishes animating before calling callback
-    });
+      row.text.animate({
+        "opacity": 0,
+        "x": animation.x + (animation.width / 2),
+        "y": animation.y + (animation.height / 2)
+      }, 500, "linear", function() {
+        if (typeof row.div !== 'undefined') eve.unbind('raphael.anim.frame.' + row.text.id, onAnimate);
+      });
+    } else {    // active, ancestor or child neurons get their titles animated to new position of rect
+      if (typeof row.div !== 'undefined') {
+        eve.on('raphael.anim.frame.' + row.text.id, onAnimate = function(i) {
+          row.div.style.opacity = this.attrs.opacity;
+          row.div.style.left = (this.attrs.x - row.div.offsetWidth / 2) + "px";
+          row.div.style.top = (this.attrs.y - row.div.offsetHeight / 2) + "px"; 
+          row.div.style.fontSize = this.attrs["font-size"];
+        });
+      }
+
+      // stuff used for positioning titles that remain visible
+      var x = animation.x + (animation.width / 2);
+      var rectTopY = animation.y;
+      var lineHeight = (animation.height / neuronToAnimate.title.length) - 1;
+      var y = (rectTopY + (index * lineHeight) + 0.5 + (lineHeight / 2));
+
+      row.text.animate({    // todo, here animate to new position as per setting when adding.
+        "x": x,
+        "y": y,
+        "font-size": lineHeight / 2,
+        "opacity": 1
+      }, 500, "linear", function() {
+        if (typeof row.div !== 'undefined') eve.unbind('raphael.anim.frame.' + row.text.id, onAnimate);
+      })
+    }
+
+    nextRow();
   });
-*/
+
+  //----------
+  // MOVE TITLES THAT WILL BE VISIBLE
+  //----------
+
   neuronToAnimate.rect.animate({
     "x": animation.x,
     "y": animation.y,
@@ -223,6 +256,7 @@ Map.prototype.animateMove = function(animations, callback, iteration) {
   //  if (iteration == 0) eve.unbind('raphael.anim.frame.' + neuronToAnimate.rect.id, onAnimate);
     if (iteration + 1 == animations.length) callback();  // callback only gets called when the last one is done
   });
+
   if (iteration + 1 < animations.length) {
     this.animateMove(animations, callback, iteration + 1);
   }

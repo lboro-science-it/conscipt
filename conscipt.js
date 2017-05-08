@@ -51,19 +51,19 @@ module.exports = {
       },
       "child": {        // child neuron of active neuron
         "depth": 1,      // depth of children (in hierarchy) to get from active
-        "distance": 30, // distance from active
+        "distance": 26, // distance from active
         "lineHeight": 4,
-        "width": 14      // width
+        "width": 12      // width
       },
       "ancestor": {     // ancestor of active neuron
         "depth": 2,     // depth in hierarchy (upwards) to go
         "distance": 14, // distance from child
-        "height": 8,
-        "width": 8      // width of ancestors
+        "lineHeight": 3,
+        "width": 12      // width of ancestors
       },
       "zii": {          // other children of ancestors (uncles, aunts, etc)
         "depth": 1,     // how deep to go in hierarchy
-        "distance": 10,
+        "distance": 11,
         "height": 4,
         "width": 4      // how wide to draw em
       }
@@ -310,6 +310,7 @@ Map.prototype.animateAdd = function(neurons, callback, iteration) {
               latexElem.style.opacity = "0";
               latexElem.innerHTML = latexText;            
               var latexRow = self.canvas.text(x, y, "").attr({
+                "font-size": (lineHeight * self.heightSF) / 2,
                 "opacity": 0
               });          // raphael element          
               self.activeScene[neuron.id].title.push({
@@ -374,6 +375,7 @@ Map.prototype.animateAdd = function(neurons, callback, iteration) {
 // Works through neurons, an object of animation attributes, and after the last one, calls callback
 //---------------------------
 Map.prototype.animateMove = function(animations, callback, iteration) {
+  var self = this;
   if (typeof iteration === 'undefined') var iteration = 0;
 
   var animation = animations[iteration];
@@ -390,27 +392,58 @@ Map.prototype.animateMove = function(animations, callback, iteration) {
     // animate moving the connections here
   }
 
-  // todo: move sizes needs to calculate for line height as per animate add
-/*
-  async.each(neuronToAnimate.title, function(row, nextRow) {
-    if (typeof row.div !== 'undefined') {   // if there is a div we need to link its animation to the raphael element
-      eve.on('raphael.anim.frame.' + row.text.id, onAnimate = function(i) {
-        row.div.opacity = this.attrs.opacity;
-      });
-    }
-    row.text.animate({
-      "opacity": 0
-    }, 500, "linear", function() {
+  //----------
+  // TITLES
+  //----------
+  async.eachOf(neuronToAnimate.title, function(row, index, nextRow) {
+    var opacity = row.text.attrs.x;
+    var fontSize = row.text.attrs["font-size"]
+    if (neuronToAnimate.role == "zii") {      // hide ZII neurons
       if (typeof row.div !== 'undefined') {
-        eve.unbind('raphael.anim.frame.' + row.text.id, onAnimate);
-        row.div.parentNode.removeChild(row.div);
+        eve.on('raphael.anim.frame.' + row.text.id, onAnimate = function(i) {
+          row.div.style.opacity = this.attrs.opacity;
+        });
       }
-      this.remove();
-      delete neuronToDelete.title[index];
-      if (index == neuronToDelete.title.length - 1) nextRow();    // wait until the last elem finishes animating before calling callback
-    });
+      row.text.animate({
+        "opacity": 0,
+        "x": animation.x + (animation.width / 2),
+        "y": animation.y + (animation.height / 2)
+      }, 500, "linear", function() {
+        if (typeof row.div !== 'undefined') eve.unbind('raphael.anim.frame.' + row.text.id, onAnimate);
+      });
+    } else {    // active, ancestor or child neurons get their titles animated to new position of rect
+      if (typeof row.div !== 'undefined') {
+        eve.on('raphael.anim.frame.' + row.text.id, onAnimate = function(i) {
+          row.div.style.opacity = this.attrs.opacity;
+          row.div.style.left = (this.attrs.x - row.div.offsetWidth / 2) + "px";
+          row.div.style.top = (this.attrs.y - row.div.offsetHeight / 2) + "px"; 
+          row.div.style.fontSize = this.attrs["font-size"];
+        });
+      }
+
+      // stuff used for positioning titles that remain visible
+      var x = animation.x + (animation.width / 2);
+      var rectTopY = animation.y;
+      var lineHeight = (animation.height / neuronToAnimate.title.length) - 1;
+      var y = (rectTopY + (index * lineHeight) + 0.5 + (lineHeight / 2));
+
+      row.text.animate({    // todo, here animate to new position as per setting when adding.
+        "x": x,
+        "y": y,
+        "font-size": lineHeight / 2,
+        "opacity": 1
+      }, 500, "linear", function() {
+        if (typeof row.div !== 'undefined') eve.unbind('raphael.anim.frame.' + row.text.id, onAnimate);
+      })
+    }
+
+    nextRow();
   });
-*/
+
+  //----------
+  // MOVE TITLES THAT WILL BE VISIBLE
+  //----------
+
   neuronToAnimate.rect.animate({
     "x": animation.x,
     "y": animation.y,
@@ -421,6 +454,7 @@ Map.prototype.animateMove = function(animations, callback, iteration) {
   //  if (iteration == 0) eve.unbind('raphael.anim.frame.' + neuronToAnimate.rect.id, onAnimate);
     if (iteration + 1 == animations.length) callback();  // callback only gets called when the last one is done
   });
+
   if (iteration + 1 < animations.length) {
     this.animateMove(animations, callback, iteration + 1);
   }
@@ -727,7 +761,7 @@ neuron.addAncestorsToScene = function(scene, neuron, config, callback) {
         var y = self.angleDistanceY(currentNeuron.parentAngle, distance, scene[currentNeuron.id].y);
 
         // add ancestor to the scene
-        self.addToScene(scene, ancestor, x, y, config.ancestor.width, config.ancestor.height, "ancestor");
+        self.addToScene(scene, ancestor, x, y, config.ancestor.width, config.ancestor.lineHeight, "ancestor");
         self.addChildrenToScene(scene, ancestor, config.zii, "zii");
 
         processingNeuron.id = ancestor.id;    // process the next ancestor now
@@ -777,18 +811,15 @@ neuron.addChildrenToScene = function(scene, parentNeuron, sceneConfig, role) {
 // if role == ancestor or zii, height=height
 //------------------------------
 neuron.addToScene = function(scene, neuron, x, y, width, height, role) {
-  console.log("adding");
-  console.log(neuron);
   // default config:
   var width = width || 10;
-  if (role == "active" || role == "child") {
+  if (role != "zii") { // active / ancestor / child
     var lineHeight = height || 4;
     var padding = 1;
     var height = lineHeight * neuron.title.length + padding;
-  } else {  // zii / ancestors
+  } else {  // zii
     var height = height || 4;
   }
-  console.log("height: " + height);
   var x = x || 50;
   var y = y || 50;
 
@@ -857,7 +888,6 @@ neuron.calculateScene = function(neuron, config, callback) {
   this.addToScene(neuron.scene, neuron, config.active.x, config.active.y, config.active.width, config.active.lineHeight, "active");
   this.addChildrenToScene(neuron.scene, neuron, config.child, "child");  // add child neurons with child config
   this.addAncestorsToScene(neuron.scene, neuron, config, function() { // add ancestor neurons with ancestor config
-    console.log(neuron.scene);
     callback();     // callback from when calculateScene was called
   });
 };

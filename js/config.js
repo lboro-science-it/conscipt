@@ -42,19 +42,19 @@ module.exports = {
       },
       "child": {        // child neuron of active neuron
         "depth": 1,      // depth of children (in hierarchy) to get from active
-        "distance": 30, // distance from active
+        "distance": 26, // distance from active
         "lineHeight": 4,
-        "width": 14      // width
+        "width": 12      // width
       },
       "ancestor": {     // ancestor of active neuron
         "depth": 2,     // depth in hierarchy (upwards) to go
         "distance": 14, // distance from child
-        "height": 8,
-        "width": 8      // width of ancestors
+        "lineHeight": 3,
+        "width": 12      // width of ancestors
       },
       "zii": {          // other children of ancestors (uncles, aunts, etc)
         "depth": 1,     // how deep to go in hierarchy
-        "distance": 10,
+        "distance": 11,
         "height": 4,
         "width": 4      // how wide to draw em
       }
