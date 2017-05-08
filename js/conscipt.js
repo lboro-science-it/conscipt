@@ -6,6 +6,8 @@ var Map = require('./map');      // deals with rendering a scene
 var n = require('./neuron');        // deals with neuron related stuff (angles, positions, etc)
 var View = require('./view');       // deals with rendering a view (resource)
 
+var extend = require('extend');
+
 module.exports = function(config) {
 
   // Conscipt constructor
@@ -31,18 +33,28 @@ module.exports = function(config) {
   // make neuron object the active neuron, rendering its scene (after calculating if needed)
   Conscipt.prototype.activate = function(neuron) {
     var map = this.map;
+    var view = this.view;
 
     if (this.activeNeuron !== neuron) {   // only activate if not already active
       console.log(this);
       // only calculate the scene if it needs to be calculated
       if (typeof neuron.scene === 'undefined') {
         neuron.scene = {};
-        var sceneConfig = neuron.sceneConfig || this.config.scene;
+        var _defaultSceneConfig = extend(true, {}, this.config.scene);
+        var sceneConfig = extend(true, _defaultSceneConfig, neuron.sceneConfig);
+
         n.calculateScene(neuron, sceneConfig, function() {
           map.render(neuron);
         });
       } else {
         map.render(neuron);
+      }
+      // check if the neuron has a view
+      if (typeof neuron.view === 'undefined') {
+        view.clearAndHide();
+        // hide the view div
+      } else {
+        // show the view div and fill it with the neuron's view
       }
       this.activeNeuron = neuron;      
     }

@@ -71,6 +71,11 @@ Map.prototype.animateAdd = function(neurons, callback, iteration) {
     .click(function() {   
       self.parent.activate(self.parent.neurons[this.data("neuronId")]);
     })
+    .hover(function() {
+      this.attr({"cursor": "pointer"});
+    }, function() {
+      this.attr({"cursor": "normal"});
+    })
     .toBack()
     .animate({                // animate into position
       "x": (self.renderingScene[neuron.id].x - self.renderingScene[neuron.id].width / 2) * self.widthSF,
@@ -98,6 +103,15 @@ Map.prototype.animateAdd = function(neurons, callback, iteration) {
               "font-size": (lineHeight * self.heightSF) / 2,
               "opacity": 0
             })
+            .data("neuronId", neuron.id)
+            .click(function() {   
+              self.parent.activate(self.parent.neurons[this.data("neuronId")]);
+            })
+            .hover(function() {
+              this.attr({"cursor": "pointer"});
+            }, function() {
+              this.attr({"cursor": "normal"});
+            })
             .animate({
               "opacity": 1
             }, 500, "linear");
@@ -110,7 +124,8 @@ Map.prototype.animateAdd = function(neurons, callback, iteration) {
               var latexElem = document.createElement("DIV");      // element where latex is rendered
               var latexText = katex.renderToString(row[key]);     // text string
               latexElem.style.opacity = "0";
-              latexElem.innerHTML = latexText;            
+              latexElem.innerHTML = latexText;
+              latexElem.style.cursor = "pointer";
               var latexRow = self.canvas.text(x, y, "").attr({
                 "font-size": (lineHeight * self.heightSF) / 2,
                 "opacity": 0
@@ -120,6 +135,9 @@ Map.prototype.animateAdd = function(neurons, callback, iteration) {
                 "div": latexElem
               });
               document.body.appendChild(latexElem);
+              latexElem.addEventListener('click', function() {
+                self.parent.activate(self.parent.neurons[neuron.id]);
+              });
 
               latexElem.style.fontSize = (lineHeight * self.heightSF) / 2;
               latexElem.style.position = "absolute";
@@ -219,7 +237,7 @@ Map.prototype.animateMove = function(animations, callback, iteration) {
           row.div.style.opacity = this.attrs.opacity;
           row.div.style.left = (this.attrs.x - row.div.offsetWidth / 2) + "px";
           row.div.style.top = (this.attrs.y - row.div.offsetHeight / 2) + "px"; 
-          row.div.style.fontSize = this.attrs["font-size"];
+          row.div.style.fontSize = this.attrs["font-size"] + "px";
         });
       }
 

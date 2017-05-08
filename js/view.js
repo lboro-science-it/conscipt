@@ -24,3 +24,8 @@ function View(parent, viewDivId, containerDivId) {
   });
 
 };
+
+View.prototype.clearAndHide = function() {
+  // todo: insert code to destroy all elements that make this resource view
+  this.div.style.display = "none";
+};

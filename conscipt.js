@@ -90,6 +90,8 @@ var Map = require('./map');      // deals with rendering a scene
 var n = require('./neuron');        // deals with neuron related stuff (angles, positions, etc)
 var View = require('./view');       // deals with rendering a view (resource)
 
+var extend = require('extend');
+
 module.exports = function(config) {
 
   // Conscipt constructor
@@ -115,18 +117,28 @@ module.exports = function(config) {
   // make neuron object the active neuron, rendering its scene (after calculating if needed)
   Conscipt.prototype.activate = function(neuron) {
     var map = this.map;
+    var view = this.view;
 
     if (this.activeNeuron !== neuron) {   // only activate if not already active
       console.log(this);
       // only calculate the scene if it needs to be calculated
       if (typeof neuron.scene === 'undefined') {
         neuron.scene = {};
-        var sceneConfig = neuron.sceneConfig || this.config.scene;
+        var _defaultSceneConfig = extend(true, {}, this.config.scene);
+        var sceneConfig = extend(true, _defaultSceneConfig, neuron.sceneConfig);
+
         n.calculateScene(neuron, sceneConfig, function() {
           map.render(neuron);
         });
       } else {
         map.render(neuron);
+      }
+      // check if the neuron has a view
+      if (typeof neuron.view === 'undefined') {
+        view.clearAndHide();
+        // hide the view div
+      } else {
+        // show the view div and fill it with the neuron's view
       }
       this.activeNeuron = neuron;      
     }
@@ -135,7 +147,7 @@ module.exports = function(config) {
   // calling Conscipt(config) in browser == new Conscipt(config);
   return new Conscipt(config);
 };
-},{"./config":2,"./dom":4,"./map":5,"./neuron":6,"./view":7}],4:[function(require,module,exports){
+},{"./config":2,"./dom":4,"./map":5,"./neuron":6,"./view":7,"extend":9}],4:[function(require,module,exports){
 // dom.js - init dom based on config
 
 // init dom based on config passed, creating elements as required
@@ -269,6 +281,11 @@ Map.prototype.animateAdd = function(neurons, callback, iteration) {
     .click(function() {   
       self.parent.activate(self.parent.neurons[this.data("neuronId")]);
     })
+    .hover(function() {
+      this.attr({"cursor": "pointer"});
+    }, function() {
+      this.attr({"cursor": "normal"});
+    })
     .toBack()
     .animate({                // animate into position
       "x": (self.renderingScene[neuron.id].x - self.renderingScene[neuron.id].width / 2) * self.widthSF,
@@ -296,6 +313,15 @@ Map.prototype.animateAdd = function(neurons, callback, iteration) {
               "font-size": (lineHeight * self.heightSF) / 2,
               "opacity": 0
             })
+            .data("neuronId", neuron.id)
+            .click(function() {   
+              self.parent.activate(self.parent.neurons[this.data("neuronId")]);
+            })
+            .hover(function() {
+              this.attr({"cursor": "pointer"});
+            }, function() {
+              this.attr({"cursor": "normal"});
+            })
             .animate({
               "opacity": 1
             }, 500, "linear");
@@ -308,7 +334,8 @@ Map.prototype.animateAdd = function(neurons, callback, iteration) {
               var latexElem = document.createElement("DIV");      // element where latex is rendered
               var latexText = katex.renderToString(row[key]);     // text string
               latexElem.style.opacity = "0";
-              latexElem.innerHTML = latexText;            
+              latexElem.innerHTML = latexText;
+              latexElem.style.cursor = "pointer";
               var latexRow = self.canvas.text(x, y, "").attr({
                 "font-size": (lineHeight * self.heightSF) / 2,
                 "opacity": 0
@@ -318,6 +345,9 @@ Map.prototype.animateAdd = function(neurons, callback, iteration) {
                 "div": latexElem
               });
               document.body.appendChild(latexElem);
+              latexElem.addEventListener('click', function() {
+                self.parent.activate(self.parent.neurons[neuron.id]);
+              });
 
               latexElem.style.fontSize = (lineHeight * self.heightSF) / 2;
               latexElem.style.position = "absolute";
@@ -417,7 +447,7 @@ Map.prototype.animateMove = function(animations, callback, iteration) {
           row.div.style.opacity = this.attrs.opacity;
           row.div.style.left = (this.attrs.x - row.div.offsetWidth / 2) + "px";
           row.div.style.top = (this.attrs.y - row.div.offsetHeight / 2) + "px"; 
-          row.div.style.fontSize = this.attrs["font-size"];
+          row.div.style.fontSize = this.attrs["font-size"] + "px";
         });
       }
 
@@ -981,6 +1011,10 @@ function View(parent, viewDivId, containerDivId) {
 
 };
 
+View.prototype.clearAndHide = function() {
+  // todo: insert code to destroy all elements that make this resource view
+  this.div.style.display = "none";
+};
 },{"./dom":4}],8:[function(require,module,exports){
 (function (process,global){
 (function (global, factory) {
