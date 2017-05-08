@@ -4,6 +4,7 @@ var dom = require('./dom');
 var async = require('async');
 var extend = require('extend');
 var Raphael = require('raphael');   // Raphael = graphic library
+var katex = require('katex');
 
 module.exports = Map;
 
@@ -48,18 +49,18 @@ Map.prototype.animateAdd = function(neurons, callback, iteration) {
 
   var neuron = self.neurons[neurons[iteration]];     // neuron object, use to check if it has a parent, so we know how to animate it in
 
-  // todo: first create the text at a given font size, hidden, using size to determine width / height of bounding box
-  // next draw boxes
-  // also draw lines
   // todo: think of how we will account for hiding text when not child
   // probably a 'type' property in each scene, indicating whether the neuron is active, child, ancestor, etc in the scene, and therefore whether to display full title, etc
 
   self.activeScene[neuron.id] = extend(true, {}, self.renderingScene[neuron.id]);  // clone the details from renderingScene (co-ords, etc)
 
+
+
+
+
+  // stuff pertaining to RECTANGLE BOX
   var fill = self.renderingScene[neuron.id].fill || "#fff";
   var border = self.renderingScene[neuron.id].border || "#000";
-  var width = 0;
-  var height = 0;
   if (typeof neuron.parent !== 'undefined') {       // if neuron has a parent, create it at parent's co-ords before animating
     var x = (self.renderingScene[neuron.parent.id].x + self.renderingScene[neuron.parent.id].width / 2) * self.widthSF;
     var y = (self.renderingScene[neuron.parent.id].y + self.renderingScene[neuron.parent.id].height / 2) * self.heightSF;
@@ -68,8 +69,13 @@ Map.prototype.animateAdd = function(neurons, callback, iteration) {
     var y = (self.renderingScene[neuron.id].y + self.renderingScene[neuron.id].height / 2) * self.heightSF;
   }
 
-  self.activeScene[neuron.id].rect = self.canvas.rect(x, y, width, height)
-    .attr({fill: fill, stroke: border, opacity: 100})
+
+  self.activeScene[neuron.id].rect = self.canvas.rect(x, y, 0, 0)
+    .attr({
+      "fill": fill, 
+      "stroke": border, 
+      "stroke-width": 3,
+      "opacity": 1})
     .data("neuronId", neuron.id)
     .click(function() {
       self.parent.activate(self.parent.neurons[this.data("neuronId")]);
@@ -79,17 +85,97 @@ Map.prototype.animateAdd = function(neurons, callback, iteration) {
       "x": (self.renderingScene[neuron.id].x - self.renderingScene[neuron.id].width / 2) * self.widthSF,
       "y": (self.renderingScene[neuron.id].y - self.renderingScene[neuron.id].height / 2) * self.heightSF,
       "width": self.renderingScene[neuron.id].width * self.widthSF,
-      "height": self.renderingScene[neuron.id].height * self.heightSF,
-      "opacity": 100
-    }, 500, "linear", function() {
-      if (iteration + 1 == neurons.length) callback();
+      "height": self.renderingScene[neuron.id].height * self.heightSF
+    }, 500, "linear", function() {      // rect is animated into place
+
+
+      // stuff pertaining to TITLE
+
+      var x = self.renderingScene[neuron.id].x * self.widthSF;                                               // co-ords of middle of current rect
+      var rectTopY = self.renderingScene[neuron.id].y - (self.renderingScene[neuron.id].height / 2);   // co-ords of top of current rect with 1
+      var lineHeight = self.renderingScene[neuron.id].lineHeight;
+      self.activeScene[neuron.id].title = [];                       // empty array for title elements to live in
+      self.activeScene[neuron.id].titleElems = [];                  // array for html elements of latex stuff
+      // add a text element for each part of title
+      async.eachOf(neuron.title, function(row, index, nextRow) {
+        // following is adding height of rows, 0.5 and half of the lineheight 
+
+        var y = (rectTopY + (index * lineHeight) + 0.5 + (lineHeight / 2)) * self.heightSF;
+        if (typeof row === "string") {  // just render text as usual
+          var titleRow = self.canvas.text(x, y, row)
+            .attr({
+              "font-size": (lineHeight * self.heightSF) / 2,
+              "opacity": 0
+            })
+            .animate({
+              "opacity": 1
+            }, 500, "linear");
+          self.activeScene[neuron.id].title.push(titleRow);
+        } else if (typeof row === "object") {
+          for (var key in row) {
+            if (key == "latex") {
+              var latexElem = document.createElement("DIV");      // element where latex is rendered
+              var latexText = katex.renderToString(row[key]);     // text string
+              latexElem.style.opacity = "0";
+              latexElem.innerHTML = latexText;            
+              var latexRow = self.canvas.text(x, y, "").attr({
+                "opacity": 0
+              });          // raphael element          
+              self.activeScene[neuron.id].titleElems.push({
+                "text": latexRow,
+                "div": latexElem
+              });
+              document.body.appendChild(latexElem);
+
+              latexElem.style.fontSize = (lineHeight * self.heightSF) / 2;
+              latexElem.style.position = "absolute";
+              latexElem.style.top = (y - ((lineHeight * self.heightSF) / 2)) + "px";
+
+              setTimeout(function() { // create a dummy raphael element and use it to animate this one in
+                latexElem.style.left = x - latexElem.offsetWidth / 2 + "px";
+              }, 100);
+
+              var index = self.activeScene[neuron.id].titleElems.length;
+
+              eve.on('raphael.anim.frame.' + latexRow.id, onAnimate = function(index) {
+                latexElem.style.opacity = this.attrs.opacity;
+                console.log(latexElem);
+              });
+
+              latexRow.animate({
+                "opacity": 1
+              }, 500, "linear", function() {
+                eve.unbind('raphael.anim.frame.' + latexRow.id, onAnimate);
+              });
+
+
+
+/*
+    eve.on('raphael.anim.frame.' + neuronToAnimate.rect.id, onAnimate = function(animationObject) {
+      elem.style.left = (this.attrs.x + this.attrs.width / 4) + 'px';
+      elem.style.top = (this.attrs.y + this.attrs.height / 2) + 'px';
+      elem.style.fontSize = (this.attrs.x / 100) + 'em';
     });
+  }
 
-  var x = self.renderingScene[neuron.id].x * self.widthSF;
-  var y = self.renderingScene[neuron.id].y * self.heightSF;
+  neuronToAnimate.rect.animate({
+    "x": animation.x,
+    "y": animation.y,
+    "width": animation.width, // todo: function to calculate width w/ SF
+    "height": animation.height // todo: put height in here!
+    // todo: insert code to move the neuron to its new position and size
+  }, 500, "linear", function() {
+  //  if (iteration == 0) eve.unbind('raphael.anim.frame.' + neuronToAnimate.rect.id, onAnimate);
 
-  self.activeScene[neuron.id].text = self.canvas.text(x, y, neuron.title[0]);
+*/
+            } // end if key === latex
+          } 
+        } // end if row === object
 
+      });      
+
+      if (iteration + 1 == neurons.length) callback();  // rect is added, so call callback
+    });
 
   if (iteration + 1 < neurons.length) {
     setTimeout(function() {
@@ -137,6 +223,17 @@ Map.prototype.animateMove = function(animations, callback, iteration) {
     // animate moving the connections here
   }
 
+/*
+  if (iteration == 0) {
+    var elem = document.getElementById("testElem");
+
+    eve.on('raphael.anim.frame.' + neuronToAnimate.rect.id, onAnimate = function(animationObject) {
+      elem.style.left = (this.attrs.x + this.attrs.width / 4) + 'px';
+      elem.style.top = (this.attrs.y + this.attrs.height / 2) + 'px';
+      elem.style.fontSize = (this.attrs.x / 100) + 'em';
+    });
+  }
+*/
   neuronToAnimate.rect.animate({
     "x": animation.x,
     "y": animation.y,
@@ -144,6 +241,7 @@ Map.prototype.animateMove = function(animations, callback, iteration) {
     "height": animation.height // todo: put height in here!
     // todo: insert code to move the neuron to its new position and size
   }, 500, "linear", function() {
+  //  if (iteration == 0) eve.unbind('raphael.anim.frame.' + neuronToAnimate.rect.id, onAnimate);
     if (iteration + 1 == animations.length) callback();  // callback only gets called when the last one is done
   });
   if (iteration + 1 < animations.length) {
@@ -246,6 +344,12 @@ Map.prototype.render = function(neuron) {
   this.greatestX = 0, this.lowestX = 100, this.greatestY = 0, this.lowestY = 100;
   var animations = { remove: [], anchor: [], move: [], add: [] };
 
+  // todo: change animation so it goes:
+  // 1. remove any child nodes
+  // 2. dock current active to its parent if appropriate
+  // 3. move entire structure so active is in its new position
+  // 4. resize active
+
   async.series([          
     function(callback) {  // check what neurons need to be removed from scene, in order starting from activeNeuron
       if (self.activeNeuron !== null) {
@@ -278,6 +382,7 @@ Map.prototype.render = function(neuron) {
 
         async.eachOf(self.activeScene, function(neuron, neuronId, nextNeuron) {
           if (typeof self.renderingScene[neuronId] !== 'undefined') {   // if neuron exists in activeScene and renderingScene, it needs to be moved
+           
             animations.anchor.push({
               id: neuronId,
               x: (self.renderingScene[neuronId].x - (self.renderingScene[neuronId].width / 2) + offsetX) * self.widthSF,
@@ -285,6 +390,7 @@ Map.prototype.render = function(neuron) {
               width: self.renderingScene[neuronId].width * self.widthSF,
               height: self.renderingScene[neuronId].width * self.heightSF
             });
+
             animations.move.push({
               id: neuronId,
               x: (self.renderingScene[neuronId].x  - (self.renderingScene[neuronId].width / 2)) * self.widthSF,

@@ -37,22 +37,24 @@ module.exports = {
       "active": {       // for active neuron
         "x": 50,        // screen position (in percent)
         "y": 50,        // screen position (in percent)
-        "width": 12       // width (in percent of screen)
+        "lineHeight": 5,
+        "width": 18       // width (in percent of screen)
       },
       "child": {        // child neuron of active neuron
         "depth": 1,      // depth of children (in hierarchy) to get from active
-        "distance": 20, // distance distance from active
-        "width": 8      // width
+        "distance": 30, // distance from active
+        "lineHeight": 4,
+        "width": 14      // width
       },
       "ancestor": {     // ancestor of active neuron
         "depth": 2,     // depth in hierarchy (upwards) to go
         "distance": 14, // distance from child
-        "width": 6      // width of ancestors
+        "width": 8      // width of ancestors
       },
       "zii": {          // other children of ancestors (uncles, aunts, etc)
         "depth": 1,     // how deep to go in hierarchy
-        "distance": 8,
-        "width": 2      // how wide to draw em
+        "distance": 10,
+        "width": 4      // how wide to draw em
       }
     },
     "styles": {

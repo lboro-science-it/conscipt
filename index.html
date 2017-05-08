@@ -6,6 +6,8 @@
     <title>engineeringMathsResources.js</title>
     <meta name="description" content="">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.7.1/katex.min.css">
+
     <script src="conscipt.js"></script>
   </head>
   <body>
@@ -38,7 +40,7 @@
           },
           "neurons": {
             "1": {
-                "title": [
+              "title": [
                 "Integration Techniques",
                 "or",
                 "Integration as a math tool"
@@ -54,7 +56,7 @@
             "1-1-1": {
               "title": [
                 "Positive powers",
-                "of x",                     // LaTeX here
+                {"latex": "of x"},                     // LaTeX here
                 "(polynomials)"
               ],
               "style": "neuron_1",
@@ -63,7 +65,7 @@
             "1-1-2": {
               "title": [
                 "Negative powers",
-                "of x",                     // LaTeX here
+                {"latex": "of x"},                     // LaTeX here
                 "(integer values)"
               ],
               "style": "neuron_1",
@@ -72,7 +74,7 @@
             "1-1-3": {
               "title": [
                 "Fractional powers",
-                "of x",                     // LaTeX here
+                {"latex": "of x"},                     // LaTeX here
                 "(pos. + neg. values)"
               ],
               "style": "neuron_1",
@@ -147,7 +149,7 @@
               "title": [
                 "Integration",              // LaTeX here
                 "by parts:",
-                "*** need to do LaTeX here ***"
+                {"latex": "\\int{udv}=uv-\\int{vdu}"}
               ],
               "style": "neuron_3",
               "parent_id": "1"
@@ -223,7 +225,7 @@
             "1-5-1": {
               "title": [
                 "Using",                    // LaTeX here
-                "sin2A = 2sinAcosA"
+                {"latex": "sin2A = 2sinAcosA"}
               ],
               "style": "neuron_5",
               "parent_id": "1-5"
@@ -231,8 +233,7 @@
             "1-5-2": {
               "title": [
                 "Using",
-                "cos2A = 2cos2A-1",         // LaTeX here
-                "*** need LaTeX here ***"
+                {"latex": "cos2A = 2cos2A-1"}         // LaTeX here
               ],
               "style": "neuron_5",
               "parent_id": "1-5"
@@ -241,7 +242,7 @@
               "title": [
                 "Using",
                 "Multiple formulae",        // LaTeX here
-                "*** need LaTeX here ***"
+                {"latex": "text"}
               ],
               "style": "neuron_5",
               "parent_id": "1-5"

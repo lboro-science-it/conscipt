@@ -72,7 +72,7 @@ neuron.addChildrenToScene = function(scene, parentNeuron, sceneConfig, fill) {
     var x = this.angleDistanceX(parentNeuron.children[i].angle, distance, scene[parentNeuron.id].x);
     var y = this.angleDistanceY(parentNeuron.children[i].angle, distance, scene[parentNeuron.id].y);
 
-    this.addToScene(scene, neuronObj, x, y, sceneConfig.width, sceneConfig.width, fill);
+    this.addToScene(scene, neuronObj, x, y, sceneConfig.width, sceneConfig.lineHeight, fill);
   }
 }
 
@@ -81,10 +81,11 @@ neuron.addChildrenToScene = function(scene, parentNeuron, sceneConfig, fill) {
 // -
 // Adds a neuron to a scene with the given width, height, x, y
 //------------------------------
-neuron.addToScene = function(scene, neuron, x, y, width, height, fill) {
+neuron.addToScene = function(scene, neuron, x, y, width, lineHeight, fill) {
   // default config:
   var width = width || 10;
-  var height = height || 10;
+  var height = lineHeight || 4;
+  height = height * neuron.title.length + 1;
   var x = x || 50;
   var y = y || 50;
 
@@ -96,6 +97,7 @@ neuron.addToScene = function(scene, neuron, x, y, width, height, fill) {
     "parent": parentId,
     "width": width,
     "height": height,
+    "lineHeight": lineHeight,
     "x": x,
     "y": y,
     "fill": style.fill,
@@ -148,7 +150,7 @@ neuron.calculateChildAngles = function(neuron) {
 //------------------------------
 neuron.calculateScene = function(neuron, config, callback) {
   // add active neuron in active position
-  this.addToScene(neuron.scene, neuron, config.active.x, config.active.y, config.active.width, config.active.height);
+  this.addToScene(neuron.scene, neuron, config.active.x, config.active.y, config.active.width, config.active.lineHeight);
   this.addChildrenToScene(neuron.scene, neuron, config.child);  // add child neurons with child config
   this.addAncestorsToScene(neuron.scene, neuron, config, function() { // add ancestor neurons with ancestor config
     callback();     // callback from when calculateScene was called
