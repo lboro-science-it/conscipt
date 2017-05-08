@@ -3,6 +3,17 @@
 // init dom based on config passed, creating elements as required
 module.exports.init = function(config) {
 
+  var css = '.katex { font-family: "arial"; font-size: 1em !important;}';
+  var head = document.head;
+  var style = document.createElement('style');
+  style.type = 'text/css';
+  if (style.styleSheet) {
+    style.styleSheet.cssText = css;
+  } else {
+    style.appendChild(document.createTextNode(css));
+  }
+  head.appendChild(style);
+
   for (var elem in config) {
     if (typeof document[elem] !== 'undefined') {
       // elem exists in document so is body, documentElement, etc - apply the values to attr's props

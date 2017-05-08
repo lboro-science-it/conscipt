@@ -156,6 +156,7 @@ neuron.calculateChildAngles = function(neuron) {
 // calculates scene of neuron based on config
 //------------------------------
 neuron.calculateScene = function(neuron, config, callback) {
+  if (typeof neuron.scene === 'undefined') neuron.scene = {};
   // add active neuron in active position
   this.addToScene(neuron.scene, neuron, config.active.x, config.active.y, config.active.width, config.active.lineHeight, "active");
   this.addChildrenToScene(neuron.scene, neuron, config.child, "child");  // add child neurons with child config

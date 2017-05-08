@@ -121,25 +121,46 @@ module.exports = function(config) {
 
     if (this.activeNeuron !== neuron) {   // only activate if not already active
       console.log(this);
+
       // only calculate the scene if it needs to be calculated
-      if (typeof neuron.scene === 'undefined') {
-        neuron.scene = {};
+//      if (typeof neuron.scene === 'undefined') {
+//        neuron.scene = {};
         var _defaultSceneConfig = extend(true, {}, this.config.scene);
         var sceneConfig = extend(true, _defaultSceneConfig, neuron.sceneConfig);
 
         n.calculateScene(neuron, sceneConfig, function() {
-          map.render(neuron);
+          map.render(neuron, function() {
+            // check if the neuron has a view
+            if (typeof neuron.resource === 'undefined') {
+              view.clearAndHide();
+              // hide the view div
+            } else {
+              view.render(neuron.resource);
+              // so here we want to move the canvas to the left 
+              //map.canvas.setViewBox(map.lowestX * map.widthSF, 0, map.width, map.height);
+
+              // in fact, we don't want to bother about the canvas at all here that must be part of the animations
+              // e.g. IF has a resource, animate in a specific way based on lowestX, greatestX etc
+              // IF not, animate as currently
+              // perhaps instead of dealing with viewBox, just animate everything to the left if it has a resource,
+              // so determine a centre position for the neuron based on the total size of the thing and stick the whole scene there in the 
+              // second part of the animations
+              // this of course will also enable us a little control over whether things go off the edge, etc
+              // so we could write a routine which, when animating the left-most, top-most, bottom-most or right-most, prevents the x or y going lower than 0
+              // since these moves consist of preparing an entire array, we can record the lowest x position during creation of it, and then offset everything by that amount if necessary to keep it over 0 (the anchor animation)
+              // todo also: we need to keep 3rd level children closer to their ancestors. so currently ancestors are just plotted at child 'distance' in the code. 'ancestor' distance is used for the ... dunno. but we need to fix especially for narrower screen
+
+              // todo: not sure about small screen actually without refactoring whole thing
+              // todo: centering the conscipt div without messing up the latex
+
+              // show the view div and fill it with the neuron's view
+            }
+          });
         });
-      } else {
-        map.render(neuron);
-      }
-      // check if the neuron has a view
-      if (typeof neuron.view === 'undefined') {
-        view.clearAndHide();
-        // hide the view div
-      } else {
-        // show the view div and fill it with the neuron's view
-      }
+//      } else {
+//        map.render(neuron);
+//      }
+
       this.activeNeuron = neuron;      
     }
   };
@@ -152,6 +173,17 @@ module.exports = function(config) {
 
 // init dom based on config passed, creating elements as required
 module.exports.init = function(config) {
+
+  var css = '.katex { font-family: "arial"; font-size: 1em !important;}';
+  var head = document.head;
+  var style = document.createElement('style');
+  style.type = 'text/css';
+  if (style.styleSheet) {
+    style.styleSheet.cssText = css;
+  } else {
+    style.appendChild(document.createTextNode(css));
+  }
+  head.appendChild(style);
 
   for (var elem in config) {
     if (typeof document[elem] !== 'undefined') {
@@ -349,11 +381,11 @@ Map.prototype.animateAdd = function(neurons, callback, iteration) {
                 self.parent.activate(self.parent.neurons[neuron.id]);
               });
 
-              latexElem.style.fontSize = (lineHeight * self.heightSF) / 2;
+              latexElem.style.fontSize = (lineHeight * self.heightSF) / 2 + "px";
               latexElem.style.position = "absolute";
-              latexElem.style.top = (y - ((lineHeight * self.heightSF) / 2)) + "px";
 
               setTimeout(function() { // create a dummy raphael element and use it to animate this one in
+                latexElem.style.top = y - latexElem.offsetHeight / 2 + "px";
                 latexElem.style.left = x - latexElem.offsetWidth / 2 + "px";
               }, 100);
 
@@ -603,7 +635,7 @@ Map.prototype.findChildrenToRemove = function(neuron, activeNeuron, newScene, re
 // -
 // Animate from this.activeScene to scene, where neuron is the new active neuron
 //------------------------
-Map.prototype.render = function(neuron) {
+Map.prototype.render = function(neuron, callback) {
   var self = this;
   this.renderingNeuron = neuron;
   this.renderingScene = neuron.scene;
@@ -700,6 +732,7 @@ Map.prototype.render = function(neuron) {
     }
   ], function() {
     self.activeNeuron = neuron;
+    callback();
   });
 };
 
@@ -914,6 +947,7 @@ neuron.calculateChildAngles = function(neuron) {
 // calculates scene of neuron based on config
 //------------------------------
 neuron.calculateScene = function(neuron, config, callback) {
+  if (typeof neuron.scene === 'undefined') neuron.scene = {};
   // add active neuron in active position
   this.addToScene(neuron.scene, neuron, config.active.x, config.active.y, config.active.width, config.active.lineHeight, "active");
   this.addChildrenToScene(neuron.scene, neuron, config.child, "child");  // add child neurons with child config
@@ -1009,11 +1043,17 @@ function View(parent, viewDivId, containerDivId) {
     }
   });
 
+  this.content = [];
+
 };
 
 View.prototype.clearAndHide = function() {
   // todo: insert code to destroy all elements that make this resource view
   this.div.style.display = "none";
+};
+
+View.prototype.render = function(content) {
+  console.log(content);
 };
 },{"./dom":4}],8:[function(require,module,exports){
 (function (process,global){

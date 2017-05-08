@@ -139,11 +139,11 @@ Map.prototype.animateAdd = function(neurons, callback, iteration) {
                 self.parent.activate(self.parent.neurons[neuron.id]);
               });
 
-              latexElem.style.fontSize = (lineHeight * self.heightSF) / 2;
+              latexElem.style.fontSize = (lineHeight * self.heightSF) / 2 + "px";
               latexElem.style.position = "absolute";
-              latexElem.style.top = (y - ((lineHeight * self.heightSF) / 2)) + "px";
 
               setTimeout(function() { // create a dummy raphael element and use it to animate this one in
+                latexElem.style.top = y - latexElem.offsetHeight / 2 + "px";
                 latexElem.style.left = x - latexElem.offsetWidth / 2 + "px";
               }, 100);
 
@@ -393,7 +393,7 @@ Map.prototype.findChildrenToRemove = function(neuron, activeNeuron, newScene, re
 // -
 // Animate from this.activeScene to scene, where neuron is the new active neuron
 //------------------------
-Map.prototype.render = function(neuron) {
+Map.prototype.render = function(neuron, callback) {
   var self = this;
   this.renderingNeuron = neuron;
   this.renderingScene = neuron.scene;
@@ -490,6 +490,7 @@ Map.prototype.render = function(neuron) {
     }
   ], function() {
     self.activeNeuron = neuron;
+    callback();
   });
 };
 

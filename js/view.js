@@ -23,9 +23,15 @@ function View(parent, viewDivId, containerDivId) {
     }
   });
 
+  this.content = [];
+
 };
 
 View.prototype.clearAndHide = function() {
   // todo: insert code to destroy all elements that make this resource view
   this.div.style.display = "none";
+};
+
+View.prototype.render = function(content) {
+  console.log(content);
 };
