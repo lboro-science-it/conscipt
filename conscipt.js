@@ -58,11 +58,13 @@ module.exports = {
       "ancestor": {     // ancestor of active neuron
         "depth": 2,     // depth in hierarchy (upwards) to go
         "distance": 14, // distance from child
+        "height": 8,
         "width": 8      // width of ancestors
       },
       "zii": {          // other children of ancestors (uncles, aunts, etc)
         "depth": 1,     // how deep to go in hierarchy
         "distance": 10,
+        "height": 4,
         "width": 4      // how wide to draw em
       }
     },
@@ -377,7 +379,7 @@ Map.prototype.animateMove = function(animations, callback, iteration) {
   var animation = animations[iteration];
   var neuronToAnimate = this.activeScene[animation.id];
 
-  // todo: update this.activeScene
+  // keep neurons in activeScene up to date
   this.activeScene[animation.id].x = this.renderingScene[animation.id].x;
   this.activeScene[animation.id].y = this.renderingScene[animation.id].y;
   this.activeScene[animation.id].width = this.renderingScene[animation.id].width;
@@ -389,7 +391,26 @@ Map.prototype.animateMove = function(animations, callback, iteration) {
   }
 
   // todo: move sizes needs to calculate for line height as per animate add
-
+/*
+  async.each(neuronToAnimate.title, function(row, nextRow) {
+    if (typeof row.div !== 'undefined') {   // if there is a div we need to link its animation to the raphael element
+      eve.on('raphael.anim.frame.' + row.text.id, onAnimate = function(i) {
+        row.div.opacity = this.attrs.opacity;
+      });
+    }
+    row.text.animate({
+      "opacity": 0
+    }, 500, "linear", function() {
+      if (typeof row.div !== 'undefined') {
+        eve.unbind('raphael.anim.frame.' + row.text.id, onAnimate);
+        row.div.parentNode.removeChild(row.div);
+      }
+      this.remove();
+      delete neuronToDelete.title[index];
+      if (index == neuronToDelete.title.length - 1) nextRow();    // wait until the last elem finishes animating before calling callback
+    });
+  });
+*/
   neuronToAnimate.rect.animate({
     "x": animation.x,
     "y": animation.y,
@@ -451,14 +472,12 @@ Map.prototype.animateRemove = function(neurons, callback, iteration) {
       x = self.activeScene[neuron.id].rect.attrs.x;
       y = self.activeScene[neuron.id].rect.attrs.y;
     }
-
     // remove connecting lines
     // todo: animate these out
     if (typeof self.connections[neuron.id] !== 'undefined') {
       self.connections[neuron.id].remove();
       delete self.connections[neuron.id];
     }
-
     neuronToDelete.rect.animate({
       "x": x,
       "y": y,
@@ -564,17 +583,17 @@ Map.prototype.render = function(neuron) {
             animations.anchor.push({
               id: neuronId,
               x: (self.renderingScene[neuronId].x - (self.renderingScene[neuronId].width / 2) + offsetX) * self.widthSF,
-              y: (self.renderingScene[neuronId].y - (self.renderingScene[neuronId].width / 2) + offsetY) * self.heightSF,
+              y: (self.renderingScene[neuronId].y - (self.renderingScene[neuronId].height / 2) + offsetY) * self.heightSF,
               width: self.renderingScene[neuronId].width * self.widthSF,
-              height: self.renderingScene[neuronId].width * self.heightSF
+              height: self.renderingScene[neuronId].height * self.heightSF
             });
 
             animations.move.push({
               id: neuronId,
               x: (self.renderingScene[neuronId].x  - (self.renderingScene[neuronId].width / 2)) * self.widthSF,
-              y: (self.renderingScene[neuronId].y  - (self.renderingScene[neuronId].width / 2)) * self.heightSF,
+              y: (self.renderingScene[neuronId].y  - (self.renderingScene[neuronId].height / 2)) * self.heightSF,
               width: self.renderingScene[neuronId].width * self.widthSF,
-              height: self.renderingScene[neuronId].width * self.heightSF   // todo: put proper height here
+              height: self.renderingScene[neuronId].height * self.heightSF   // todo: put proper height here
             });
             nextNeuron();
           } else nextNeuron();
@@ -708,7 +727,7 @@ neuron.addAncestorsToScene = function(scene, neuron, config, callback) {
         var y = self.angleDistanceY(currentNeuron.parentAngle, distance, scene[currentNeuron.id].y);
 
         // add ancestor to the scene
-        self.addToScene(scene, ancestor, x, y, config.ancestor.width, config.ancestor.lineHeight, "ancestor");
+        self.addToScene(scene, ancestor, x, y, config.ancestor.width, config.ancestor.height, "ancestor");
         self.addChildrenToScene(scene, ancestor, config.zii, "zii");
 
         processingNeuron.id = ancestor.id;    // process the next ancestor now
@@ -745,21 +764,31 @@ neuron.addChildrenToScene = function(scene, parentNeuron, sceneConfig, role) {
 
     var x = this.angleDistanceX(parentNeuron.children[i].angle, distance, scene[parentNeuron.id].x);
     var y = this.angleDistanceY(parentNeuron.children[i].angle, distance, scene[parentNeuron.id].y);
-
-    this.addToScene(scene, neuronObj, x, y, sceneConfig.width, sceneConfig.lineHeight, role);
+    if (role == "child") this.addToScene(scene, neuronObj, x, y, sceneConfig.width, sceneConfig.lineHeight, role);
+    else this.addToScene(scene, neuronObj, x, y, sceneConfig.width, sceneConfig.height, role);
   }
 }
 
 //------------------------------
-// neuron.addToScene(scene, neuron, x, y, width, lineHeight)
+// neuron.addToScene(scene, neuron, x, y, width, height)
 // -
 // Adds a neuron to a scene with the given width, height, x, y
+// if role == active or child, height=line height and is used to calculate proper height
+// if role == ancestor or zii, height=height
 //------------------------------
-neuron.addToScene = function(scene, neuron, x, y, width, lineHeight, role) {
+neuron.addToScene = function(scene, neuron, x, y, width, height, role) {
+  console.log("adding");
+  console.log(neuron);
   // default config:
   var width = width || 10;
-  var height = lineHeight || 4;
-  height = height * neuron.title.length + 1;
+  if (role == "active" || role == "child") {
+    var lineHeight = height || 4;
+    var padding = 1;
+    var height = lineHeight * neuron.title.length + padding;
+  } else {  // zii / ancestors
+    var height = height || 4;
+  }
+  console.log("height: " + height);
   var x = x || 50;
   var y = y || 50;
 
@@ -828,6 +857,7 @@ neuron.calculateScene = function(neuron, config, callback) {
   this.addToScene(neuron.scene, neuron, config.active.x, config.active.y, config.active.width, config.active.lineHeight, "active");
   this.addChildrenToScene(neuron.scene, neuron, config.child, "child");  // add child neurons with child config
   this.addAncestorsToScene(neuron.scene, neuron, config, function() { // add ancestor neurons with ancestor config
+    console.log(neuron.scene);
     callback();     // callback from when calculateScene was called
   });
 };

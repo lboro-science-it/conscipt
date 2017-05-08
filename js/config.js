@@ -49,11 +49,13 @@ module.exports = {
       "ancestor": {     // ancestor of active neuron
         "depth": 2,     // depth in hierarchy (upwards) to go
         "distance": 14, // distance from child
+        "height": 8,
         "width": 8      // width of ancestors
       },
       "zii": {          // other children of ancestors (uncles, aunts, etc)
         "depth": 1,     // how deep to go in hierarchy
         "distance": 10,
+        "height": 4,
         "width": 4      // how wide to draw em
       }
     },

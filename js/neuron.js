@@ -33,7 +33,7 @@ neuron.addAncestorsToScene = function(scene, neuron, config, callback) {
         var y = self.angleDistanceY(currentNeuron.parentAngle, distance, scene[currentNeuron.id].y);
 
         // add ancestor to the scene
-        self.addToScene(scene, ancestor, x, y, config.ancestor.width, config.ancestor.lineHeight, "ancestor");
+        self.addToScene(scene, ancestor, x, y, config.ancestor.width, config.ancestor.height, "ancestor");
         self.addChildrenToScene(scene, ancestor, config.zii, "zii");
 
         processingNeuron.id = ancestor.id;    // process the next ancestor now
@@ -70,21 +70,31 @@ neuron.addChildrenToScene = function(scene, parentNeuron, sceneConfig, role) {
 
     var x = this.angleDistanceX(parentNeuron.children[i].angle, distance, scene[parentNeuron.id].x);
     var y = this.angleDistanceY(parentNeuron.children[i].angle, distance, scene[parentNeuron.id].y);
-
-    this.addToScene(scene, neuronObj, x, y, sceneConfig.width, sceneConfig.lineHeight, role);
+    if (role == "child") this.addToScene(scene, neuronObj, x, y, sceneConfig.width, sceneConfig.lineHeight, role);
+    else this.addToScene(scene, neuronObj, x, y, sceneConfig.width, sceneConfig.height, role);
   }
 }
 
 //------------------------------
-// neuron.addToScene(scene, neuron, x, y, width, lineHeight)
+// neuron.addToScene(scene, neuron, x, y, width, height)
 // -
 // Adds a neuron to a scene with the given width, height, x, y
+// if role == active or child, height=line height and is used to calculate proper height
+// if role == ancestor or zii, height=height
 //------------------------------
-neuron.addToScene = function(scene, neuron, x, y, width, lineHeight, role) {
+neuron.addToScene = function(scene, neuron, x, y, width, height, role) {
+  console.log("adding");
+  console.log(neuron);
   // default config:
   var width = width || 10;
-  var height = lineHeight || 4;
-  height = height * neuron.title.length + 1;
+  if (role == "active" || role == "child") {
+    var lineHeight = height || 4;
+    var padding = 1;
+    var height = lineHeight * neuron.title.length + padding;
+  } else {  // zii / ancestors
+    var height = height || 4;
+  }
+  console.log("height: " + height);
   var x = x || 50;
   var y = y || 50;
 
@@ -153,6 +163,7 @@ neuron.calculateScene = function(neuron, config, callback) {
   this.addToScene(neuron.scene, neuron, config.active.x, config.active.y, config.active.width, config.active.lineHeight, "active");
   this.addChildrenToScene(neuron.scene, neuron, config.child, "child");  // add child neurons with child config
   this.addAncestorsToScene(neuron.scene, neuron, config, function() { // add ancestor neurons with ancestor config
+    console.log(neuron.scene);
     callback();     // callback from when calculateScene was called
   });
 };

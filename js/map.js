@@ -181,7 +181,7 @@ Map.prototype.animateMove = function(animations, callback, iteration) {
   var animation = animations[iteration];
   var neuronToAnimate = this.activeScene[animation.id];
 
-  // todo: update this.activeScene
+  // keep neurons in activeScene up to date
   this.activeScene[animation.id].x = this.renderingScene[animation.id].x;
   this.activeScene[animation.id].y = this.renderingScene[animation.id].y;
   this.activeScene[animation.id].width = this.renderingScene[animation.id].width;
@@ -193,7 +193,26 @@ Map.prototype.animateMove = function(animations, callback, iteration) {
   }
 
   // todo: move sizes needs to calculate for line height as per animate add
-
+/*
+  async.each(neuronToAnimate.title, function(row, nextRow) {
+    if (typeof row.div !== 'undefined') {   // if there is a div we need to link its animation to the raphael element
+      eve.on('raphael.anim.frame.' + row.text.id, onAnimate = function(i) {
+        row.div.opacity = this.attrs.opacity;
+      });
+    }
+    row.text.animate({
+      "opacity": 0
+    }, 500, "linear", function() {
+      if (typeof row.div !== 'undefined') {
+        eve.unbind('raphael.anim.frame.' + row.text.id, onAnimate);
+        row.div.parentNode.removeChild(row.div);
+      }
+      this.remove();
+      delete neuronToDelete.title[index];
+      if (index == neuronToDelete.title.length - 1) nextRow();    // wait until the last elem finishes animating before calling callback
+    });
+  });
+*/
   neuronToAnimate.rect.animate({
     "x": animation.x,
     "y": animation.y,
@@ -255,14 +274,12 @@ Map.prototype.animateRemove = function(neurons, callback, iteration) {
       x = self.activeScene[neuron.id].rect.attrs.x;
       y = self.activeScene[neuron.id].rect.attrs.y;
     }
-
     // remove connecting lines
     // todo: animate these out
     if (typeof self.connections[neuron.id] !== 'undefined') {
       self.connections[neuron.id].remove();
       delete self.connections[neuron.id];
     }
-
     neuronToDelete.rect.animate({
       "x": x,
       "y": y,
@@ -368,17 +385,17 @@ Map.prototype.render = function(neuron) {
             animations.anchor.push({
               id: neuronId,
               x: (self.renderingScene[neuronId].x - (self.renderingScene[neuronId].width / 2) + offsetX) * self.widthSF,
-              y: (self.renderingScene[neuronId].y - (self.renderingScene[neuronId].width / 2) + offsetY) * self.heightSF,
+              y: (self.renderingScene[neuronId].y - (self.renderingScene[neuronId].height / 2) + offsetY) * self.heightSF,
               width: self.renderingScene[neuronId].width * self.widthSF,
-              height: self.renderingScene[neuronId].width * self.heightSF
+              height: self.renderingScene[neuronId].height * self.heightSF
             });
 
             animations.move.push({
               id: neuronId,
               x: (self.renderingScene[neuronId].x  - (self.renderingScene[neuronId].width / 2)) * self.widthSF,
-              y: (self.renderingScene[neuronId].y  - (self.renderingScene[neuronId].width / 2)) * self.heightSF,
+              y: (self.renderingScene[neuronId].y  - (self.renderingScene[neuronId].height / 2)) * self.heightSF,
               width: self.renderingScene[neuronId].width * self.widthSF,
-              height: self.renderingScene[neuronId].width * self.heightSF   // todo: put proper height here
+              height: self.renderingScene[neuronId].height * self.heightSF   // todo: put proper height here
             });
             nextNeuron();
           } else nextNeuron();
