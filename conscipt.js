@@ -414,6 +414,7 @@ Map.prototype.animateMove = function(animations, callback, iteration) {
   this.activeScene[animation.id].y = this.renderingScene[animation.id].y;
   this.activeScene[animation.id].width = this.renderingScene[animation.id].width;
   this.activeScene[animation.id].height = this.renderingScene[animation.id].height;
+  this.activeScene[animation.id].role = this.renderingScene[animation.id].role;
 
   if (typeof this.connections[animation.id] !== 'undefined') {
     // animate moving the connections here
@@ -726,8 +727,8 @@ neuron.addAncestorsToScene = function(scene, neuron, config, callback) {
         var y = self.angleDistanceY(currentNeuron.parentAngle, distance, scene[currentNeuron.id].y);
 
         // add ancestor to the scene
-        self.addToScene(scene, ancestor, x, y, config.ancestor.width, config.ancestor.height);
-        self.addChildrenToScene(scene, ancestor, config.zii);
+        self.addToScene(scene, ancestor, x, y, config.ancestor.width, config.ancestor.lineHeight, "ancestor");
+        self.addChildrenToScene(scene, ancestor, config.zii, "zii");
 
         processingNeuron.id = ancestor.id;    // process the next ancestor now
       } else {    // break if current neuron doesn't have a parent
@@ -749,9 +750,8 @@ neuron.addAncestorsToScene = function(scene, neuron, config, callback) {
 // Add neuron's children to scene, including calculating their positions based on angle and distance in sceneConfig
 //------------------------------
 // todo: instead of using children array to store position, just have a parent angle on each neuron which is used to calculate position in any scene
-neuron.addChildrenToScene = function(scene, parentNeuron, sceneConfig, fill) {
+neuron.addChildrenToScene = function(scene, parentNeuron, sceneConfig, role) {
   var distance = sceneConfig.distance || 10;
-  var fill = fill || "#ffffff";
 
   // todo: use callbacks here since result is required for following functions
   this.calculateChildAngles(parentNeuron);
@@ -765,16 +765,16 @@ neuron.addChildrenToScene = function(scene, parentNeuron, sceneConfig, fill) {
     var x = this.angleDistanceX(parentNeuron.children[i].angle, distance, scene[parentNeuron.id].x);
     var y = this.angleDistanceY(parentNeuron.children[i].angle, distance, scene[parentNeuron.id].y);
 
-    this.addToScene(scene, neuronObj, x, y, sceneConfig.width, sceneConfig.lineHeight, fill);
+    this.addToScene(scene, neuronObj, x, y, sceneConfig.width, sceneConfig.lineHeight, role);
   }
 }
 
 //------------------------------
-// neuron.addToScene(scene, neuronId, x, y, width, height)
+// neuron.addToScene(scene, neuron, x, y, width, lineHeight)
 // -
 // Adds a neuron to a scene with the given width, height, x, y
 //------------------------------
-neuron.addToScene = function(scene, neuron, x, y, width, lineHeight, fill) {
+neuron.addToScene = function(scene, neuron, x, y, width, lineHeight, role) {
   // default config:
   var width = width || 10;
   var height = lineHeight || 4;
@@ -794,7 +794,8 @@ neuron.addToScene = function(scene, neuron, x, y, width, lineHeight, fill) {
     "x": x,
     "y": y,
     "fill": style.fill,
-    "border": style["border-color"]
+    "border": style["border-color"],
+    "role": role
   };
 }
 
@@ -843,8 +844,8 @@ neuron.calculateChildAngles = function(neuron) {
 //------------------------------
 neuron.calculateScene = function(neuron, config, callback) {
   // add active neuron in active position
-  this.addToScene(neuron.scene, neuron, config.active.x, config.active.y, config.active.width, config.active.lineHeight);
-  this.addChildrenToScene(neuron.scene, neuron, config.child);  // add child neurons with child config
+  this.addToScene(neuron.scene, neuron, config.active.x, config.active.y, config.active.width, config.active.lineHeight, "active");
+  this.addChildrenToScene(neuron.scene, neuron, config.child, "child");  // add child neurons with child config
   this.addAncestorsToScene(neuron.scene, neuron, config, function() { // add ancestor neurons with ancestor config
     callback();     // callback from when calculateScene was called
   });

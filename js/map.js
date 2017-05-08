@@ -218,6 +218,7 @@ Map.prototype.animateMove = function(animations, callback, iteration) {
   this.activeScene[animation.id].y = this.renderingScene[animation.id].y;
   this.activeScene[animation.id].width = this.renderingScene[animation.id].width;
   this.activeScene[animation.id].height = this.renderingScene[animation.id].height;
+  this.activeScene[animation.id].role = this.renderingScene[animation.id].role;
 
   if (typeof this.connections[animation.id] !== 'undefined') {
     // animate moving the connections here
