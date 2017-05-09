@@ -22,6 +22,7 @@ function Map(parent, mapDivId, containerDivId) {
   this.activeNeuron = null;     // refers to the actual neuron object that is currently active
   this.renderingScene = {};   // refers to the actual scene object that is currently rendering
   this.renderingNeuron = {};  // refers to the actual neuron object that is currently rendering
+  this.rendering = false;
   // map overall stuff
   this.width = 0, this.height = 0, this.widthSF = 0, this.heightSF = 0;
   this.lowestX = 0, this.greatestX = 0, this.greatestY = 0, this.lowestY = 0;
@@ -397,6 +398,7 @@ Map.prototype.render = function(neuron, callback) {
   var self = this;
   this.renderingNeuron = neuron;
   this.renderingScene = neuron.scene;
+  this.rendering = true;
 
   this.greatestX = 0, this.lowestX = 100, this.greatestY = 0, this.lowestY = 100;
   var animations = { remove: [], anchor: [], move: [], add: [] };
@@ -489,8 +491,9 @@ Map.prototype.render = function(neuron, callback) {
       } else callback();
     }
   ], function() {
+    self.rendering = false;
     self.activeNeuron = neuron;
-    callback();
+    if (typeof callback !== 'undefined') callback();
   });
 };
 

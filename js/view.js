@@ -2,6 +2,10 @@
 
 var dom = require('./dom');
 
+var async = require('async');
+var katex = require('katex');
+
+
 module.exports = View;
 
 // view constructor
@@ -34,4 +38,13 @@ View.prototype.clearAndHide = function() {
 
 View.prototype.render = function(content) {
   console.log(content);
+  async.each(content, function(component, nextComponent) {
+    if (typeof component === "string") {    // just put strings in a <p> elem
+
+    }
+    if (typeof component === "object") {    // object could be latex, qblock, etc
+
+    }
+    console.log(component);
+  });
 };

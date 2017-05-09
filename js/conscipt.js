@@ -35,21 +35,17 @@ module.exports = function(config) {
     var map = this.map;
     var view = this.view;
 
-    if (this.activeNeuron !== neuron) {   // only activate if not already active
+    if (this.activeNeuron !== neuron && !map.rendering) {   // only activate if not already active
       console.log(this);
 
-      // only calculate the scene if it needs to be calculated
-//      if (typeof neuron.scene === 'undefined') {
-//        neuron.scene = {};
         var _defaultSceneConfig = extend(true, {}, this.config.scene);
         var sceneConfig = extend(true, _defaultSceneConfig, neuron.sceneConfig);
 
         n.calculateScene(neuron, sceneConfig, function() {
           map.render(neuron, function() {
             // check if the neuron has a view
-            if (typeof neuron.resource === 'undefined') {
-              view.clearAndHide();
-              // hide the view div
+            if (typeof neuron.resource === 'undefined') {   // if neuron doesn't have a resource
+              view.clearAndHide();  // this should remove all dom elems + display:none the div (probably)
             } else {
               view.render(neuron.resource);
               // so here we want to move the canvas to the left 
@@ -73,9 +69,6 @@ module.exports = function(config) {
             }
           });
         });
-//      } else {
-//        map.render(neuron);
-//      }
 
       this.activeNeuron = neuron;      
     }

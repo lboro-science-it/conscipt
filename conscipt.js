@@ -119,21 +119,17 @@ module.exports = function(config) {
     var map = this.map;
     var view = this.view;
 
-    if (this.activeNeuron !== neuron) {   // only activate if not already active
+    if (this.activeNeuron !== neuron && !map.rendering) {   // only activate if not already active
       console.log(this);
 
-      // only calculate the scene if it needs to be calculated
-//      if (typeof neuron.scene === 'undefined') {
-//        neuron.scene = {};
         var _defaultSceneConfig = extend(true, {}, this.config.scene);
         var sceneConfig = extend(true, _defaultSceneConfig, neuron.sceneConfig);
 
         n.calculateScene(neuron, sceneConfig, function() {
           map.render(neuron, function() {
             // check if the neuron has a view
-            if (typeof neuron.resource === 'undefined') {
-              view.clearAndHide();
-              // hide the view div
+            if (typeof neuron.resource === 'undefined') {   // if neuron doesn't have a resource
+              view.clearAndHide();  // this should remove all dom elems + display:none the div (probably)
             } else {
               view.render(neuron.resource);
               // so here we want to move the canvas to the left 
@@ -157,9 +153,6 @@ module.exports = function(config) {
             }
           });
         });
-//      } else {
-//        map.render(neuron);
-//      }
 
       this.activeNeuron = neuron;      
     }
@@ -264,6 +257,7 @@ function Map(parent, mapDivId, containerDivId) {
   this.activeNeuron = null;     // refers to the actual neuron object that is currently active
   this.renderingScene = {};   // refers to the actual scene object that is currently rendering
   this.renderingNeuron = {};  // refers to the actual neuron object that is currently rendering
+  this.rendering = false;
   // map overall stuff
   this.width = 0, this.height = 0, this.widthSF = 0, this.heightSF = 0;
   this.lowestX = 0, this.greatestX = 0, this.greatestY = 0, this.lowestY = 0;
@@ -639,6 +633,7 @@ Map.prototype.render = function(neuron, callback) {
   var self = this;
   this.renderingNeuron = neuron;
   this.renderingScene = neuron.scene;
+  this.rendering = true;
 
   this.greatestX = 0, this.lowestX = 100, this.greatestY = 0, this.lowestY = 100;
   var animations = { remove: [], anchor: [], move: [], add: [] };
@@ -731,8 +726,9 @@ Map.prototype.render = function(neuron, callback) {
       } else callback();
     }
   ], function() {
+    self.rendering = false;
     self.activeNeuron = neuron;
-    callback();
+    if (typeof callback !== 'undefined') callback();
   });
 };
 
@@ -816,7 +812,7 @@ neuron.addAncestorsToScene = function(scene, neuron, config, callback) {
       if (typeof currentNeuron.parent !== 'undefined') {  // get ancestor neuron of current neuron if it exists
         var ancestor = neurons[currentNeuron.parent.id];
         // distance to use depends on whether this is ancestor of an active node or not
-        if (currentNeuron.id == neuron.id) var distance = config.child.distance;
+        if (currentNeuron.id == neuron.id) var distance = config.child.distance - 2;
         else var distance = config.ancestor.distance;
 
         // calculate co-ords of ancestor based on its child's co-ords in the scene
@@ -1022,6 +1018,10 @@ module.exports = neuron;
 
 var dom = require('./dom');
 
+var async = require('async');
+var katex = require('katex');
+
+
 module.exports = View;
 
 // view constructor
@@ -1054,8 +1054,17 @@ View.prototype.clearAndHide = function() {
 
 View.prototype.render = function(content) {
   console.log(content);
+  async.each(content, function(component, nextComponent) {
+    if (typeof component === "string") {    // just put strings in a <p> elem
+
+    }
+    if (typeof component === "object") {    // object could be latex, qblock, etc
+
+    }
+    console.log(component);
+  });
 };
-},{"./dom":4}],8:[function(require,module,exports){
+},{"./dom":4,"async":8,"katex":10}],8:[function(require,module,exports){
 (function (process,global){
 (function (global, factory) {
   typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports) :

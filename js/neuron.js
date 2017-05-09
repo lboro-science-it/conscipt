@@ -25,7 +25,7 @@ neuron.addAncestorsToScene = function(scene, neuron, config, callback) {
       if (typeof currentNeuron.parent !== 'undefined') {  // get ancestor neuron of current neuron if it exists
         var ancestor = neurons[currentNeuron.parent.id];
         // distance to use depends on whether this is ancestor of an active node or not
-        if (currentNeuron.id == neuron.id) var distance = config.child.distance;
+        if (currentNeuron.id == neuron.id) var distance = config.child.distance - 2;
         else var distance = config.ancestor.distance;
 
         // calculate co-ords of ancestor based on its child's co-ords in the scene
