@@ -270,7 +270,7 @@ Map.prototype.animateAdd = function(neurons, callback, iteration) {
 // -
 // Works through neurons, an object of animation attributes, and after the last one, calls callback
 //---------------------------
-Map.prototype.animateMove = function(animations, callback, iteration) {
+Map.prototype.animateMove = function(animations, offsetX, offsetY, callback, iteration) {
   var self = this;
   if (typeof iteration === 'undefined') var iteration = 0;
 
@@ -294,7 +294,6 @@ Map.prototype.animateMove = function(animations, callback, iteration) {
   // TITLES
   //----------
   async.eachOf(neuronToAnimate.title, function(row, index, nextRow) {
-    var opacity = row.text.attrs.x;
     var fontSize = row.text.attrs["font-size"]
     if (neuronToAnimate.role == "zii") {      // hide ZII neurons
       if (typeof row.div !== 'undefined') {
@@ -306,8 +305,8 @@ Map.prototype.animateMove = function(animations, callback, iteration) {
       }
       row.text.animate({
         "opacity": 0,
-        "x": animation.x + (animation.width / 2),
-        "y": animation.y + (animation.height / 2)
+        "x": animation.x + offsetX + (animation.width / 2),
+        "y": animation.y + offsetY + (animation.height / 2)
       }, 500, "linear", function() {
         if (typeof row.div !== 'undefined') eve.unbind('raphael.anim.frame.' + row.text.id, onAnimate);
       });
@@ -328,8 +327,8 @@ Map.prototype.animateMove = function(animations, callback, iteration) {
       var y = (rectTopY + (index * lineHeight) + 0.5 + (lineHeight / 2));
 
       row.text.animate({    // todo, here animate to new position as per setting when adding.
-        "x": x,
-        "y": y,
+        "x": x + offsetX,
+        "y": y + offsetY,
         "font-size": lineHeight / 2,
         "opacity": 1
       }, 500, "linear", function() {
@@ -345,8 +344,8 @@ Map.prototype.animateMove = function(animations, callback, iteration) {
   //----------
 
   neuronToAnimate.rect.animate({
-    "x": animation.x,
-    "y": animation.y,
+    "x": animation.x + offsetX,
+    "y": animation.y + offsetY,
     "width": animation.width, // todo: function to calculate width w/ SF
     "height": animation.height // todo: put height in here!
     // todo: insert code to move the neuron to its new position and size
@@ -356,7 +355,7 @@ Map.prototype.animateMove = function(animations, callback, iteration) {
   });
 
   if (iteration + 1 < animations.length) {
-    this.animateMove(animations, callback, iteration + 1);
+    this.animateMove(animations, offsetX, offsetY, callback, iteration + 1);
   }
 };
 
@@ -506,6 +505,7 @@ Map.prototype.render = function(neuron, callback) {
 
   this.greatestX = 0, this.lowestX = 100, this.greatestY = 0, this.lowestY = 100;
   var animations = { remove: [], anchor: [], move: [], add: [] };
+  var anchorGreatestX = 0, anchorLowestX = this.width, anchorGreatestY = 0, anchorLowestY = this.height;
 
   async.series([          
     function(callback) {  // check what neurons need to be removed from scene, in order starting from activeNeuron
@@ -548,6 +548,14 @@ Map.prototype.render = function(neuron, callback) {
               height: self.getRenderingHeight(neuron)
             });
 
+            // track any of the neurons which have gone beyond the edge of the canvas, which will be used to offset when animating moves
+            if (self.getRenderingX(neuron) + offsetX < anchorLowestX) anchorLowestX = self.getRenderingX(neuron) + offsetX;
+            if (self.getRenderingX(neuron) + offsetY > anchorGreatestX) anchorGreatestX = self.getRenderingX(neuron) + offsetX;
+            if (self.getRenderingY(neuron) + offsetY < anchorLowestY) anchorLowestY = self.getRenderingY(neuron) + offsetY;
+            if (self.getRenderingY(neuron) + offsetY > anchorGreatestY) anchorGreatestY = self.getRenderingY(neuron) + offsetY;
+
+            console.log(self.getRenderingX(neuron) + offsetX);
+
             animations.move.push({
               id: neuron.id,
               x: self.getRenderingX(neuron),
@@ -565,14 +573,18 @@ Map.prototype.render = function(neuron, callback) {
     },
     function(callback) {  // move ancestors to new sizes and positions relative to new active neuron
       if (animations.anchor.length > 0) {
-        self.animateMove(animations.anchor, function() {
+        var offsetX = 0;
+        var offsetY = 0;
+        self.animateMove(animations.anchor, offsetX, offsetY, function() {
           callback();
         });
       } else callback();
     },
     function(callback) {  // move whole structure to new position (new scene)
       if (animations.move.length > 0) {
-        self.animateMove(animations.move, function() {
+        var offsetX = 0;
+        var offsetY = 0;
+        self.animateMove(animations.move, offsetX, offsetY, function() {
           callback();
         });
       } else callback();
