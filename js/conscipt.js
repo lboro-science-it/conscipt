@@ -42,12 +42,21 @@ module.exports = function(config) {
         var sceneConfig = extend(true, _defaultSceneConfig, neuron.sceneConfig);
 
         n.calculateScene(neuron, sceneConfig, function() {
+          
+          var canRenderView = false;
+
+          if (view.visible) {
+            view.hide(function() {
+              view.clear(function() {
+                canRenderView = true;
+              });
+            });
+          }
+
           map.render(neuron, function() {
-            // check if the neuron has a view
-            if (typeof neuron.resource === 'undefined') {   // if neuron doesn't have a resource
-              view.clearAndHide();  // this should remove all dom elems + display:none the div (probably)
-            } else {
-              view.render(neuron.resource);
+            if (typeof neuron.resource !== 'undefined') view.render(neuron);
+          });
+          
               // so here we want to move the canvas to the left 
               //map.canvas.setViewBox(map.lowestX * map.widthSF, 0, map.width, map.height);
 
@@ -65,10 +74,12 @@ module.exports = function(config) {
               // todo: not sure about small screen actually without refactoring whole thing
               // todo: centering the conscipt div without messing up the latex
 
+              // todo: katex TITLES are in ARIAL font, but other katex (in VIEWS) is in its own font
+
               // show the view div and fill it with the neuron's view
-            }
-          });
-        });
+          
+          
+        }); // end calculateScene
 
       this.activeNeuron = neuron;      
     }

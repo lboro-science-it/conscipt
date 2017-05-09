@@ -28,7 +28,7 @@ function Map(parent, mapDivId, containerDivId) {
   this.lowestX = 0, this.greatestX = 0, this.greatestY = 0, this.lowestY = 0;
   this.connections = [];    // obj to store connections (paths) between neurons
   this.calculateSize(this.parent.div.id);
-  this.div = dom.addChildDiv({"id": mapDivId,"parent":containerDivId,"style":{"border":"solid 1px #d4d4d4"}});
+  this.div = dom.addChildDiv({"id": mapDivId,"parent":containerDivId});
   // re-render on resize
   window.addEventListener('resize', function() {
     clearTimeout(self.fireResize);  // only resize after 0.2 seconds
@@ -213,6 +213,8 @@ Map.prototype.animateMove = function(animations, callback, iteration) {
     // animate moving the connections here
   }
 
+  // todo: KATEX elements aren't moving when it's a Zii, fix it
+
   //----------
   // TITLES
   //----------
@@ -223,6 +225,8 @@ Map.prototype.animateMove = function(animations, callback, iteration) {
       if (typeof row.div !== 'undefined') {
         eve.on('raphael.anim.frame.' + row.text.id, onAnimate = function(i) {
           row.div.style.opacity = this.attrs.opacity;
+          row.div.style.left = (this.attrs.x - row.div.offsetWidth / 2) + "px";
+          row.div.style.top = (this.attrs.y - row.div.offsetHeight / 2) + "px";
         });
       }
       row.text.animate({
@@ -352,6 +356,32 @@ Map.prototype.animateRemove = function(neurons, callback, iteration) {
       self.animateRemove(neurons, callback, iteration + 1);
     }, 100);
   }
+};
+
+//------------------------
+// Map.calculateSize(containerDivId)
+// -
+// calculate biggest 16:9 space based on container div (= this.parent.div.id = conscipt.div.id)
+// containerDivId is optional parameter, if not passed it will try parent
+//------------------------
+Map.prototype.calculateSize = function(containerDivId) {
+  var containerDivId = containerDivId || this.parent.div.id;
+  var containerDiv = document.getElementById(containerDivId);
+  var width = containerDiv.offsetWidth;
+  var height = containerDiv.offsetHeight;
+  if (((width / 16) * 9) > height) {  // if wider than 16:9 ratio, calculate width based on height
+    this.height = height;
+    this.width = (height / 9) * 16;
+  } else {                            // if taller than 16:9 ratio, calculate height based on width
+    this.width = width;
+    this.height = (width / 16) * 9;
+  }
+  this.widthSF = this.width / 100;      // width scaling factor for percentage co-ords
+  this.heightSF = this.height / 100;    // height scaling factor for percentage co-ords
+
+  // todo: vertical positioning (center)
+  // todo: incorporate view mode (i.e. if we are viewing a resource)
+  // todo: incorporate view mode (i.e. portrait vs landscape, small screen)
 };
 
 // function to iterate ancestor neurons (and their children) determining whether they need to be removed when rendering newscene, callback if so
@@ -495,32 +525,6 @@ Map.prototype.render = function(neuron, callback) {
     self.activeNeuron = neuron;
     if (typeof callback !== 'undefined') callback();
   });
-};
-
-//------------------------
-// Map.calculateSize(containerDivId)
-// -
-// calculate biggest 16:9 space based on container div (= this.parent.div.id = conscipt.div.id)
-// containerDivId is optional parameter, if not passed it will try parent
-//------------------------
-Map.prototype.calculateSize = function(containerDivId) {
-  var containerDivId = containerDivId || this.parent.div.id;
-  var containerDiv = document.getElementById(containerDivId);
-  var width = containerDiv.offsetWidth;
-  var height = containerDiv.offsetHeight;
-  if (((width / 16) * 9) > height) {  // if wider than 16:9 ratio, calculate width based on height
-    this.height = height;
-    this.width = (height / 9) * 16;
-  } else {                            // if taller than 16:9 ratio, calculate height based on width
-    this.width = width;
-    this.height = (width / 16) * 9;
-  }
-  this.widthSF = this.width / 100;      // width scaling factor for percentage co-ords
-  this.heightSF = this.height / 100;    // height scaling factor for percentage co-ords
-
-  // todo: vertical positioning (center)
-  // todo: incorporate view mode (i.e. if we are viewing a resource)
-  // todo: incorporate view mode (i.e. portrait vs landscape, small screen)
 };
 
 //-------------------------

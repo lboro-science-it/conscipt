@@ -126,12 +126,21 @@ module.exports = function(config) {
         var sceneConfig = extend(true, _defaultSceneConfig, neuron.sceneConfig);
 
         n.calculateScene(neuron, sceneConfig, function() {
+          
+          var canRenderView = false;
+
+          if (view.visible) {
+            view.hide(function() {
+              view.clear(function() {
+                canRenderView = true;
+              });
+            });
+          }
+
           map.render(neuron, function() {
-            // check if the neuron has a view
-            if (typeof neuron.resource === 'undefined') {   // if neuron doesn't have a resource
-              view.clearAndHide();  // this should remove all dom elems + display:none the div (probably)
-            } else {
-              view.render(neuron.resource);
+            if (typeof neuron.resource !== 'undefined') view.render(neuron);
+          });
+          
               // so here we want to move the canvas to the left 
               //map.canvas.setViewBox(map.lowestX * map.widthSF, 0, map.width, map.height);
 
@@ -149,10 +158,12 @@ module.exports = function(config) {
               // todo: not sure about small screen actually without refactoring whole thing
               // todo: centering the conscipt div without messing up the latex
 
+              // todo: katex TITLES are in ARIAL font, but other katex (in VIEWS) is in its own font
+
               // show the view div and fill it with the neuron's view
-            }
-          });
-        });
+          
+          
+        }); // end calculateScene
 
       this.activeNeuron = neuron;      
     }
@@ -263,7 +274,7 @@ function Map(parent, mapDivId, containerDivId) {
   this.lowestX = 0, this.greatestX = 0, this.greatestY = 0, this.lowestY = 0;
   this.connections = [];    // obj to store connections (paths) between neurons
   this.calculateSize(this.parent.div.id);
-  this.div = dom.addChildDiv({"id": mapDivId,"parent":containerDivId,"style":{"border":"solid 1px #d4d4d4"}});
+  this.div = dom.addChildDiv({"id": mapDivId,"parent":containerDivId});
   // re-render on resize
   window.addEventListener('resize', function() {
     clearTimeout(self.fireResize);  // only resize after 0.2 seconds
@@ -448,6 +459,8 @@ Map.prototype.animateMove = function(animations, callback, iteration) {
     // animate moving the connections here
   }
 
+  // todo: KATEX elements aren't moving when it's a Zii, fix it
+
   //----------
   // TITLES
   //----------
@@ -458,6 +471,8 @@ Map.prototype.animateMove = function(animations, callback, iteration) {
       if (typeof row.div !== 'undefined') {
         eve.on('raphael.anim.frame.' + row.text.id, onAnimate = function(i) {
           row.div.style.opacity = this.attrs.opacity;
+          row.div.style.left = (this.attrs.x - row.div.offsetWidth / 2) + "px";
+          row.div.style.top = (this.attrs.y - row.div.offsetHeight / 2) + "px";
         });
       }
       row.text.animate({
@@ -587,6 +602,32 @@ Map.prototype.animateRemove = function(neurons, callback, iteration) {
       self.animateRemove(neurons, callback, iteration + 1);
     }, 100);
   }
+};
+
+//------------------------
+// Map.calculateSize(containerDivId)
+// -
+// calculate biggest 16:9 space based on container div (= this.parent.div.id = conscipt.div.id)
+// containerDivId is optional parameter, if not passed it will try parent
+//------------------------
+Map.prototype.calculateSize = function(containerDivId) {
+  var containerDivId = containerDivId || this.parent.div.id;
+  var containerDiv = document.getElementById(containerDivId);
+  var width = containerDiv.offsetWidth;
+  var height = containerDiv.offsetHeight;
+  if (((width / 16) * 9) > height) {  // if wider than 16:9 ratio, calculate width based on height
+    this.height = height;
+    this.width = (height / 9) * 16;
+  } else {                            // if taller than 16:9 ratio, calculate height based on width
+    this.width = width;
+    this.height = (width / 16) * 9;
+  }
+  this.widthSF = this.width / 100;      // width scaling factor for percentage co-ords
+  this.heightSF = this.height / 100;    // height scaling factor for percentage co-ords
+
+  // todo: vertical positioning (center)
+  // todo: incorporate view mode (i.e. if we are viewing a resource)
+  // todo: incorporate view mode (i.e. portrait vs landscape, small screen)
 };
 
 // function to iterate ancestor neurons (and their children) determining whether they need to be removed when rendering newscene, callback if so
@@ -730,32 +771,6 @@ Map.prototype.render = function(neuron, callback) {
     self.activeNeuron = neuron;
     if (typeof callback !== 'undefined') callback();
   });
-};
-
-//------------------------
-// Map.calculateSize(containerDivId)
-// -
-// calculate biggest 16:9 space based on container div (= this.parent.div.id = conscipt.div.id)
-// containerDivId is optional parameter, if not passed it will try parent
-//------------------------
-Map.prototype.calculateSize = function(containerDivId) {
-  var containerDivId = containerDivId || this.parent.div.id;
-  var containerDiv = document.getElementById(containerDivId);
-  var width = containerDiv.offsetWidth;
-  var height = containerDiv.offsetHeight;
-  if (((width / 16) * 9) > height) {  // if wider than 16:9 ratio, calculate width based on height
-    this.height = height;
-    this.width = (height / 9) * 16;
-  } else {                            // if taller than 16:9 ratio, calculate height based on width
-    this.width = width;
-    this.height = (width / 16) * 9;
-  }
-  this.widthSF = this.width / 100;      // width scaling factor for percentage co-ords
-  this.heightSF = this.height / 100;    // height scaling factor for percentage co-ords
-
-  // todo: vertical positioning (center)
-  // todo: incorporate view mode (i.e. if we are viewing a resource)
-  // todo: incorporate view mode (i.e. portrait vs landscape, small screen)
 };
 
 //-------------------------
@@ -1037,32 +1052,139 @@ function View(parent, viewDivId, containerDivId) {
       "display": "none",
       "height": "100%",
       "left": "50%",
+      "padding": "2em",
       "position": "absolute",
       "top": "0",
       "width": "50%"
     }
   });
 
+  this.visible = false;
+
   this.content = [];
 
 };
 
-View.prototype.clearAndHide = function() {
-  // todo: insert code to destroy all elements that make this resource view
-  this.div.style.display = "none";
+View.prototype.clear = function(callback) {
+  while(this.div.firstChild) {
+    this.div.removeChild(this.div.firstChild);
+  }
+  callback();
 };
 
-View.prototype.render = function(content) {
-  console.log(content);
-  async.each(content, function(component, nextComponent) {
-    if (typeof component === "string") {    // just put strings in a <p> elem
-
+View.prototype.hide = function(callback) {
+  var self = this;
+  var div = this.div;
+  var fadeOutEffect = setInterval(function() {
+    if (!div.style.opacity) div.style.opacity = 1;
+    if (div.style.opacity == 0) {
+      clearInterval(fadeOutEffect);
+      div.style.display = "none";
+      self.visible = false;
+      callback();
     }
-    if (typeof component === "object") {    // object could be latex, qblock, etc
+    else div.style.opacity -= 0.1;
+  }, 50);
+};
 
+View.prototype.render = function(neuron) {
+  var self = this;
+  var content = neuron.resource;
+
+  console.log(content);
+  async.eachOf(content, function(component, index, nextComponent) {   // iterate the components in the neuron's resource
+    var div = dom.addChildDiv({        // create a div for each component
+      "id": neuron.id + "-resource-" + index,
+      "parent": self.div.id,
+      "style": {
+        "font-family": "arial",
+        "padding": "1em"
+      }
+
+    });
+    if (typeof component === "string") {    // treat strings as html
+      div.innerHTML = component;            // put the html in the div
+    } else if (typeof component === "object") {    // object could be latex, qblock
+      for (var type in component) {         // test what type of component it is
+        var content = component[type];
+        if (type == "latex") {                              // latex component
+          div.innerHTML = katex.renderToString(content);
+        } else if (type == "qblock") {                      // qblock component
+          var qBlockHeading = dom.addChildDiv({             // create a heading div
+            "id": div.id + "-qblock-heading",
+            "parent": div.id
+          });
+          var qTitle = document.createElement("H3");        // h3 for the title in the heading div
+          qTitle.innerHTML = content.qtitle;
+          qBlockHeading.appendChild(qTitle);
+
+          var qBlock = document.createElement("OL");        // ol for the actual question and answers to go in
+          qBlock.id = div.id + "-qblock-content";
+          div.appendChild(qBlock);
+
+          for (var i = 0; i < content.qs.length; i++) {     // iterate the questions
+            var qRow = document.createElement("LI");        // add a li for the question (and answer)
+            qRow.id = qBlock.id + "-q-" + (i + 1);
+            qRow.style["padding-top"] = "1em";
+
+            var qPart = document.createElement("DIV");
+            qPart.id = qRow.id + "-text";
+            qPart.style.width = "40%";
+            qPart.style.display = "inline-block";
+
+            qRow.appendChild(qPart);
+            for (var qType in content.qs[i]) {              // test what type of question it is
+              if (qType == "latex") {
+                qPart.innerHTML += katex.renderToString(content.qs[i][qType]);
+              } else {    // just treat it as html
+                qPart.innerHTML += content.qs[i][qType];
+              }
+            }
+
+            var aPart = document.createElement("DIV");
+            aPart.id = qBlock.id + "-a-" + (i + 1);
+            aPart.style.display = "inline-block";
+
+            qRow.appendChild(aPart);
+            for (var aType in content.as[i]) {              // test what type of answer it is
+              if (aType == "latex") {
+                aPart.innerHTML += katex.renderToString(content.as[i][aType]);
+              } else {    // just treat it as html
+                aPart.innerHTML += content.as[i][aType];
+              }
+            }
+
+            qBlock.appendChild(qRow);
+          }
+        }
+      }
     }
     console.log(component);
+    nextComponent();
+  }, function() { // all components are in the div
+    self.show();
+    console.log(self.div);
   });
+};
+
+View.prototype.show = function() {
+  var self = this;
+  var div = this.div;
+
+  var fadeInEffect = setInterval(function() {
+    if (!div.style.opacity) {
+      div.style.opacity = 0;
+    }
+    if (div.style.opacity == 1) {
+      div.style.display = "block";
+      self.visible = true;
+      clearInterval(fadeInEffect);
+    } else {
+      div.style.display = "block";
+      div.style.opacity = parseFloat(div.style.opacity) + 0.1;
+    }
+  }, 50);
+
 };
 },{"./dom":4,"async":8,"katex":10}],8:[function(require,module,exports){
 (function (process,global){
