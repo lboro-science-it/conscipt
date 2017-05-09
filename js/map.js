@@ -25,7 +25,7 @@ function Map(parent, mapDivId, containerDivId) {
   this.rendering = false;
   // map overall stuff
   this.width = 0, this.height = 0, this.widthSF = 0, this.heightSF = 0;
-  this.lowestX = 0, this.greatestX = 0, this.greatestY = 0, this.lowestY = 0;
+  this.lowestX = 0, this.greatestX = 0, this.greatestY = 0, this.lowestY = 0;       // todo: not sure if these are needed, consider removing if rendering to left is feasible
   this.connections = [];    // obj to store connections (paths) between neurons
   this.calculateSize(this.parent.div.id);
   this.div = dom.addChildDiv({"id": mapDivId,"parent":containerDivId});
@@ -36,6 +36,57 @@ function Map(parent, mapDivId, containerDivId) {
   }, true);
   // init the Raphael canvas
   this.canvas = Raphael(this.div, this.width, this.height);
+};
+
+//todo: neaten up below, create several helper functions, particularly around calculating co-ordinates etc, e.g. a 'getXfromPoint' type function
+
+// convert a neuron's percentage co-ordinates in a rendering scene
+Map.prototype.getRenderingX = function(neuron) {
+  return this.scaleX(this.rx(neuron) - this.rw(neuron) / 2);
+};
+
+// convert a neuron's percentage y co-ord to its rendering position
+Map.prototype.getRenderingY = function(neuron) {
+  return this.scaleY(this.ry(neuron) - this.rh(neuron) / 2);
+};
+
+// convert a neuron's 
+Map.prototype.getRenderingWidth = function(neuron) {
+  return this.scaleX(this.rw(neuron));
+};
+
+Map.prototype.getRenderingHeight = function(neuron) {
+  return this.scaleY(this.rh(neuron));
+};
+
+// x of neuron in rendering scene in percentage
+Map.prototype.rx = function(neuron) {
+  return this.renderingScene[neuron.id].x;
+}
+
+// y of neuron in rendering scene in percentage
+Map.prototype.ry = function(neuron) {
+  return this.renderingScene[neuron.id].y;
+}
+
+// width of neuron in rendering scene in percentage
+Map.prototype.rw = function(neuron) {
+  return this.renderingScene[neuron.id].width;
+}
+
+// height of neuron in rendering scene in percentage
+Map.prototype.rh = function(neuron) {
+  return this.renderingScene[neuron.id].height;
+}
+
+// function that takes a percentage x (as defined in neuron scenes) and returns the position based on scaling factor
+Map.prototype.scaleX = function(x) {
+  return x * this.widthSF;
+};
+
+// return y co-ord based on scaling factor based on height of screen
+Map.prototype.scaleY = function(y) {
+  return y * this.heightSF;
 };
 
 //---------------------------
@@ -55,11 +106,11 @@ Map.prototype.animateAdd = function(neurons, callback, iteration) {
   var fill = self.renderingScene[neuron.id].fill || "#fff";
   var border = self.renderingScene[neuron.id].border || "#000";
   if (typeof neuron.parent !== 'undefined') {       // if neuron has a parent, create it at parent's co-ords before animating
-    var x = (self.renderingScene[neuron.parent.id].x + self.renderingScene[neuron.parent.id].width / 2) * self.widthSF;
-    var y = (self.renderingScene[neuron.parent.id].y + self.renderingScene[neuron.parent.id].height / 2) * self.heightSF;
+    var x = self.getRenderingX(neuron.parent);
+    var y = self.getRenderingY(neuron.parent);
   } else {                                          // otherwise create it in place at its own co-ords
-    var x = (self.renderingScene[neuron.id].x + self.renderingScene[neuron.id].width / 2) * self.widthSF;
-    var y = (self.renderingScene[neuron.id].y + self.renderingScene[neuron.id].height / 2) * self.heightSF;
+    var x = self.getRenderingX(neuron);
+    var y = self.getRenderingY(neuron);
   }
   // draw the rect
   self.activeScene[neuron.id].rect = self.canvas.rect(x, y, 0, 0)   // start with width/height of 0
@@ -79,17 +130,17 @@ Map.prototype.animateAdd = function(neurons, callback, iteration) {
     })
     .toBack()
     .animate({                // animate into position
-      "x": (self.renderingScene[neuron.id].x - self.renderingScene[neuron.id].width / 2) * self.widthSF,
-      "y": (self.renderingScene[neuron.id].y - self.renderingScene[neuron.id].height / 2) * self.heightSF,
-      "width": self.renderingScene[neuron.id].width * self.widthSF,
-      "height": self.renderingScene[neuron.id].height * self.heightSF
+      "x": self.getRenderingX(neuron),
+      "y": self.getRenderingY(neuron),
+      "width": self.getRenderingWidth(neuron),
+      "height": self.getRenderingHeight(neuron)
     }, 500, "linear", function() {      // rect is animated into place
 
       //----------
       // STUFF RE: TITLE
       //----------
 
-      var x = self.renderingScene[neuron.id].x * self.widthSF;                                               // co-ords of middle of current rect
+      var x = self.scaleX(self.renderingScene[neuron.id].x);                                               // co-ords of middle of current rect
       var rectTopY = self.renderingScene[neuron.id].y - (self.renderingScene[neuron.id].height / 2);   // co-ords of top of current rect with 1
       var lineHeight = self.renderingScene[neuron.id].lineHeight;
       self.activeScene[neuron.id].title = [];                       // empty array for title elements to live in
@@ -367,14 +418,13 @@ Map.prototype.animateRemove = function(neurons, callback, iteration) {
 Map.prototype.calculateSize = function(containerDivId) {
   var containerDivId = containerDivId || this.parent.div.id;
   var containerDiv = document.getElementById(containerDivId);
-  var width = containerDiv.offsetWidth;
-  var height = containerDiv.offsetHeight;
-  if (((width / 16) * 9) > height) {  // if wider than 16:9 ratio, calculate width based on height
-    this.height = height;
-    this.width = (height / 9) * 16;
+
+  if (((containerDiv.offsetWidth / 16) * 9) > containerDiv.offsetHeight) {  // if wider than 16:9 ratio, calculate width based on height
+    this.height = containerDiv.offsetHeight;
+    this.width = (this.height / 9) * 16;
   } else {                            // if taller than 16:9 ratio, calculate height based on width
-    this.width = width;
-    this.height = (width / 16) * 9;
+    this.width = containerDiv.offsetWidth;
+    this.height = (this.width / 16) * 9;
   }
   this.widthSF = this.width / 100;      // width scaling factor for percentage co-ords
   this.heightSF = this.height / 100;    // height scaling factor for percentage co-ords
@@ -504,10 +554,10 @@ Map.prototype.render = function(neuron, callback) {
       } else callback();
     },
     function(callback) {  // determine which neurons need to be added to scene
-      async.eachOf(self.renderingScene, function(neuron, neuronId, nextId) {
-        self.updateBoundingPoints(neuronId);
-        if (typeof self.activeScene[neuronId] === 'undefined') animations.add.push(neuronId);
-        nextId();
+      async.each(self.renderingScene, function(neuron, next) {
+        self.updateBoundingPoints(neuron);
+        if (typeof self.activeScene[neuron.id] === 'undefined') animations.add.push(neuron.id);
+        next();
       },
       function() {
         callback();
@@ -536,20 +586,20 @@ Map.prototype.resize = function() {
   this.calculateSize();
   this.canvas.setSize(this.width, this.height);
   this.render(this.activeNeuron);
-  // todo: dealing with responsive?
 };
 
 //-------------------------
-// Map.updateBoundingPoints(n, scene)
+// Map.updateBoundingPoints(neuron)
 // -
-// keeps track of the greatest and lowest x and y co-ords of neurons in scene
-// n = neuron id, scene = currently rendering scene
+// maintains map.greatestX, lowestX, greatestY, lowestY, by seeing if neuron is greater or lower than them etc.
 //-------------------------
-Map.prototype.updateBoundingPoints = function(neuronId) {
-  var scene = this.renderingScene;
-  // keep track of the leftmost, rightmost, uppermost and lowermost bounds of the display.
-  if (this.greatestX < scene[neuronId].x + (scene[neuronId].width / 2)) this.greatestX = scene[neuronId].x + (scene[neuronId].width / 2);
-  if (this.lowestX > scene[neuronId].x - (scene[neuronId].width / 2)) this.lowestX = scene[neuronId].x - (scene[neuronId].width / 2);
-  if (this.greatestY < scene[neuronId].y + (scene[neuronId].width / 2)) this.greatestY = scene[neuronId].y + (scene[neuronId].width / 2);  // todo: swap in the actual height
-  if (this.lowestY > scene[neuronId].y - (scene[neuronId].width / 2)) this.lowestY = scene[neuronId].y - (scene[neuronId].width / 2);    // todo: swap in the actual height 
+Map.prototype.updateBoundingPoints = function(neuron) {
+  var x = this.rx(neuron);
+  var y = this.ry(neuron);
+  var width = this.rw(neuron);
+  var height = this.rh(neuron);
+  if (this.greatestX < x + width / 2) this.greatestX = x + width / 2;
+  if (this.lowestX > x - width / 2) this.lowestX = x - width / 2;
+  if (this.greatestY < y + height / 2) this.greatestY = y + height / 2;
+  if (this.lowestY > y - height / 2) this.lowestY = y - height / 2;
 }
