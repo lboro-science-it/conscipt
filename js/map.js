@@ -129,12 +129,12 @@ Map.prototype.animateAdd = function(neurons, callback, iteration) {
   //----------
   var fill = self.renderingScene[neuron.id].fill || "#fff";
   var border = self.renderingScene[neuron.id].border || "#000";
-  if (typeof neuron.parent !== 'undefined') {       // if neuron has a parent, create it at parent's co-ords before animating
-    var x = self.getRenderingX(neuron.parent);
-    var y = self.getRenderingY(neuron.parent);
+  if (hasParent(neuron)) {       // if neuron has a parent, create it at parent's co-ords before animating
+    var x = self.getRenderingX(neuron.parent) + self.getRenderingWidth(neuron.parent) / 2;
+    var y = self.getRenderingY(neuron.parent) + self.getRenderingHeight(neuron.parent) / 2;
   } else {                                          // otherwise create it in place at its own co-ords
-    var x = self.getRenderingX(neuron);
-    var y = self.getRenderingY(neuron);
+    var x = self.getRenderingX(neuron) + self.getRenderingWidth(neuron) / 2;
+    var y = self.getRenderingY(neuron) + self.getRenderingHeight(neuron) / 2;
   }
   // draw the rect
   self.activeScene[neuron.id].rect = self.canvas.rect(x, y, 0, 0)   // start with width/height of 0
@@ -284,7 +284,7 @@ Map.prototype.animateMove = function(animations, callback, iteration) {
   this.activeScene[animation.id].height = this.renderingScene[animation.id].height;
   this.activeScene[animation.id].role = this.renderingScene[animation.id].role;
 
-  if (typeof this.connections[animation.id] !== 'undefined') {
+  if (containsNeuron(this.connections, neuronToAnimate)) {
     // animate moving the connections here
   }
 
@@ -399,7 +399,7 @@ Map.prototype.animateRemove = function(neurons, callback, iteration) {
     //----------
     var x;
     var y;
-    if (typeof neuron.parent !== undefined) {  // if neuron has a parent, get the parent's co-ords to animate to there
+    if (hasParent(neuron)) {  // if neuron has a parent, get the parent's co-ords to animate to there
       x = self.activeScene[neuron.parent.id].rect.attrs.x + self.activeScene[neuron.parent.id].rect.attrs.width / 2;
       y = self.activeScene[neuron.parent.id].rect.attrs.y + self.activeScene[neuron.parent.id].rect.attrs.height / 2;
     } else {                                          // simply animate the neuron to its own centre
@@ -408,7 +408,7 @@ Map.prototype.animateRemove = function(neurons, callback, iteration) {
     }
     // remove connecting lines
     // todo: animate these out
-    if (typeof self.connections[neuron.id] !== 'undefined') {
+    if (containsNeuron(self.connections, neuron)) {
       self.connections[neuron.id].remove();
       delete self.connections[neuron.id];
     }
@@ -461,34 +461,34 @@ Map.prototype.calculateSize = function(containerDivId) {
 // function to iterate ancestor neurons (and their children) determining whether they need to be removed when rendering newscene, callback if so
 Map.prototype.findAncestorsToRemove = function(neuron, activeNeuron, newScene, recursing, callback) {
   var self = this;
-  if (typeof this.activeScene[neuron.id] !== 'undefined') {   // only bother if the neuron exists in the current scene
+  if (containsNeuron(this.activeScene, neuron)) {   // only bother if the neuron exists in the current scene
     var neuron = this.neurons[neuron.id];
-    if (typeof neuron.parent !== 'undefined') {   // if neuron has an ancestor, check if it's in the scene and so may need removing
+    if (hasParent(neuron)) {   // if neuron has an ancestor, check if it's in the scene and so may need removing
       var ancestor = neuron.parent;
       self.findChildrenToRemove(ancestor, activeNeuron, newScene, true, callback);    // todo: need to have a way to ignore neuron here
       self.findAncestorsToRemove(ancestor, ancestor, newScene, true, callback);   
     } else {  // neuron doesn't have an ancestor, if we are recursing then check if it needs animating out of scene
-      if (!recursing && typeof newScene[neuron.id] === 'undefined') callback(neuron);
+      if (!recursing && !containsNeuron(newScene, neuron)) callback(neuron);
     }
   }
 };
 
-// function to iterate through all child neurons until finding those without children, determining whether they need to be removed and cueing it up
+// iterate child neurons until childless, identifiying those which need removal (deal with in callback)
 Map.prototype.findChildrenToRemove = function(neuron, activeNeuron, newScene, recursing, callback) {
   var self = this;
-  if (typeof this.activeScene[neuron.id] !== 'undefined') { // only check when the neuron is in the active scene
+  if (containsNeuron(this.activeScene, neuron)) { // only check when the neuron is in the active scene
     var neuron = this.neurons[neuron.id];  // get the neuron object of the neuron who's children we are looking for
-    if (typeof neuron.children !== 'undefined') {   // if neuron has children, first check if they are in the scene and need removing
+    if (hasChildren(neuron)) {   // if neuron has children, first check if they are in the scene and need removing
       async.each(neuron.children, function(child, nextChild) {
         // checking child.id != activeNeuron.id allows ancestorsToRemove to use this function without searching itself
         if (child.id != activeNeuron.id) self.findChildrenToRemove(child, activeNeuron, newScene, true, callback);
         nextChild();
       },
       function() {  // by this time, all children have been checked, so check if this neuron needs animating out of the scene
-        if (typeof newScene[neuron.id] === 'undefined') callback(neuron);
+        if (!containsNeuron(newScene, neuron)) callback(neuron);
       });
     } else {  // if neuron doesn't have children, check if it itself needs animating out of the scene - only applies when recursing (i.e. not to the original neuron)
-      if (!recursing && typeof newScene[neuron.id] === 'undefined') callback(neuron); 
+      if (!recursing &&  !containsNeuron(newScene, neuron)) callback(neuron); 
     }
   }
 };
@@ -537,11 +537,11 @@ Map.prototype.render = function(neuron, callback) {
         var offsetX = self.scaleX(self.ax(self.renderingNeuron) - self.rx(self.renderingNeuron));
         var offsetY = self.scaleY(self.ay(self.renderingNeuron) - self.ry(self.renderingNeuron));
 
-        async.eachOf(self.activeScene, function(neuron, neuronId, nextNeuron) {
-          if (typeof self.renderingScene[neuronId] !== 'undefined') {   // if neuron exists in activeScene and renderingScene, it needs to be moved
+        async.each(self.activeScene, function(neuron, nextNeuron) {
+          if (containsNeuron(self.renderingScene, neuron)) {   // if neuron exists in activeScene and renderingScene, it needs to be moved
            
             animations.anchor.push({
-              id: neuronId,
+              id: neuron.id,
               x: self.getRenderingX(neuron) + offsetX,     // todo: have to do something here to check none of the offsets take us off the screen
               y: self.getRenderingY(neuron) + offsetY,     // todo: and here
               width: self.getRenderingWidth(neuron),
@@ -580,7 +580,7 @@ Map.prototype.render = function(neuron, callback) {
     function(callback) {  // determine which neurons need to be added to scene
       async.each(self.renderingScene, function(neuron, next) {
         self.updateBoundingPoints(neuron);
-        if (typeof self.activeScene[neuron.id] === 'undefined') animations.add.push(neuron.id);
+        if (!containsNeuron(self.activeScene, neuron)) animations.add.push(neuron.id);
         next();
       },
       function() {
@@ -627,3 +627,15 @@ Map.prototype.updateBoundingPoints = function(neuron) {
   if (this.greatestY < y + height / 2) this.greatestY = y + height / 2;
   if (this.lowestY > y - height / 2) this.lowestY = y - height / 2;
 }
+
+var hasChildren = function(neuron) {
+  return typeof neuron.children !== 'undefined';
+}
+
+var hasParent = function(neuron) {
+  return typeof neuron.parent !== 'undefined';
+};
+
+var containsNeuron = function(collection, neuron) {
+  return typeof collection[neuron.id] !== 'undefined';
+};
