@@ -286,6 +286,14 @@ function Map(parent, mapDivId, containerDivId) {
 
 //todo: neaten up below, create several helper functions, particularly around calculating co-ordinates etc, e.g. a 'getXfromPoint' type function
 
+Map.prototype.getActiveX = function(neuron) {
+  return this.scaleX(this.ax(neuron) - this.aw(neuron) / 2);
+};
+
+Map.prototype.getActiveY = function(neuron) {
+  return this.scaleY(this.ay(neuron) - this.ah(neuron) / 2);
+};
+
 // convert a neuron's percentage co-ordinates in a rendering scene
 Map.prototype.getRenderingX = function(neuron) {
   return this.scaleX(this.rx(neuron) - this.rw(neuron) / 2);
@@ -305,25 +313,41 @@ Map.prototype.getRenderingHeight = function(neuron) {
   return this.scaleY(this.rh(neuron));
 };
 
+Map.prototype.ax = function(neuron) {
+  return this.activeScene[neuron.id].x;
+};
+
+Map.prototype.ay = function(neuron) {
+  return this.activeScene[neuron.id].y;
+};
+
+Map.prototype.aw = function(neuron) {
+  return this.activeScene[neuron.id].width;
+};
+
+Map.prototype.ah = function(neuron) {
+  return this.activeScene[neuron.id].height;
+};
+
 // x of neuron in rendering scene in percentage
 Map.prototype.rx = function(neuron) {
   return this.renderingScene[neuron.id].x;
-}
+};
 
 // y of neuron in rendering scene in percentage
 Map.prototype.ry = function(neuron) {
   return this.renderingScene[neuron.id].y;
-}
+};
 
 // width of neuron in rendering scene in percentage
 Map.prototype.rw = function(neuron) {
   return this.renderingScene[neuron.id].width;
-}
+};
 
 // height of neuron in rendering scene in percentage
 Map.prototype.rh = function(neuron) {
   return this.renderingScene[neuron.id].height;
-}
+};
 
 // function that takes a percentage x (as defined in neuron scenes) and returns the position based on scaling factor
 Map.prototype.scaleX = function(x) {
@@ -756,26 +780,26 @@ Map.prototype.render = function(neuron, callback) {
     function(callback) {  // check what neurons need to be moved
       if (self.activeNeuron !== null) {
         // calculate difference between new active neuron's position in new scene and current scene
-        var offsetX = self.activeScene[self.renderingNeuron.id].x - self.renderingScene[self.renderingNeuron.id].x;
-        var offsetY = self.activeScene[self.renderingNeuron.id].y - self.renderingScene[self.renderingNeuron.id].y;
+        var offsetX = self.scaleX(self.ax(self.renderingNeuron) - self.rx(self.renderingNeuron));
+        var offsetY = self.scaleY(self.ay(self.renderingNeuron) - self.ry(self.renderingNeuron));
 
         async.eachOf(self.activeScene, function(neuron, neuronId, nextNeuron) {
           if (typeof self.renderingScene[neuronId] !== 'undefined') {   // if neuron exists in activeScene and renderingScene, it needs to be moved
            
             animations.anchor.push({
               id: neuronId,
-              x: (self.renderingScene[neuronId].x - (self.renderingScene[neuronId].width / 2) + offsetX) * self.widthSF,
-              y: (self.renderingScene[neuronId].y - (self.renderingScene[neuronId].height / 2) + offsetY) * self.heightSF,
-              width: self.renderingScene[neuronId].width * self.widthSF,
-              height: self.renderingScene[neuronId].height * self.heightSF
+              x: self.getRenderingX(neuron) + offsetX,     // todo: have to do something here to check none of the offsets take us off the screen
+              y: self.getRenderingY(neuron) + offsetY,     // todo: and here
+              width: self.getRenderingWidth(neuron),
+              height: self.getRenderingHeight(neuron)
             });
 
             animations.move.push({
-              id: neuronId,
-              x: (self.renderingScene[neuronId].x  - (self.renderingScene[neuronId].width / 2)) * self.widthSF,
-              y: (self.renderingScene[neuronId].y  - (self.renderingScene[neuronId].height / 2)) * self.heightSF,
-              width: self.renderingScene[neuronId].width * self.widthSF,
-              height: self.renderingScene[neuronId].height * self.heightSF   // todo: put proper height here
+              id: neuron.id,
+              x: self.getRenderingX(neuron),
+              y: self.getRenderingY(neuron),
+              width: self.getRenderingWidth(neuron),
+              height: self.getRenderingHeight(neuron)
             });
             nextNeuron();
           } else nextNeuron();
