@@ -140,28 +140,17 @@ module.exports = function(config) {
           map.render(neuron, function() {
             if (typeof neuron.resource !== 'undefined') view.render(neuron);
           });
-          
-              // so here we want to move the canvas to the left 
-              //map.canvas.setViewBox(map.lowestX * map.widthSF, 0, map.width, map.height);
+      
+          // todo: centering the conscipt div without messing up the latex
 
-              // in fact, we don't want to bother about the canvas at all here that must be part of the animations
-              // e.g. IF has a resource, animate in a specific way based on lowestX, greatestX etc
-              // IF not, animate as currently
-              // perhaps instead of dealing with viewBox, just animate everything to the left if it has a resource,
-              // so determine a centre position for the neuron based on the total size of the thing and stick the whole scene there in the 
-              // second part of the animations
-              // this of course will also enable us a little control over whether things go off the edge, etc
-              // so we could write a routine which, when animating the left-most, top-most, bottom-most or right-most, prevents the x or y going lower than 0
-              // since these moves consist of preparing an entire array, we can record the lowest x position during creation of it, and then offset everything by that amount if necessary to keep it over 0 (the anchor animation)
-              // todo also: we need to keep 3rd level children closer to their ancestors. so currently ancestors are just plotted at child 'distance' in the code. 'ancestor' distance is used for the ... dunno. but we need to fix especially for narrower screen
+          // todo: responsive type modes -> if screen is wider, resource goes to side of map; if taller, resource goes under map.
+          // could either make map always a 16:9 div, centred, with a conversion between conscipt co-ords and actual on-screen co-ords
+          // or could make raphael always 100% width and height, with positioning calculated accordingly, making it easier to maintain katex bits' positions.
+          // then just need to programatically change the view div styling (and content styling)
 
-              // todo: not sure about small screen actually without refactoring whole thing
-              // todo: centering the conscipt div without messing up the latex
+          // todo: katex TITLES are in ARIAL font, but other katex (in VIEWS) is in its own font
 
-              // todo: katex TITLES are in ARIAL font, but other katex (in VIEWS) is in its own font
-
-              // show the view div and fill it with the neuron's view
-          
+          // show the view div and fill it with the neuron's view
           
         }); // end calculateScene
 
@@ -270,8 +259,11 @@ function Map(parent, mapDivId, containerDivId) {
   this.renderingNeuron = {};  // refers to the actual neuron object that is currently rendering
   this.rendering = false;
   // map overall stuff
-  this.width = 0, this.height = 0, this.widthSF = 0, this.heightSF = 0;
-  this.lowestX = 0, this.greatestX = 0, this.greatestY = 0, this.lowestY = 0;       // todo: not sure if these are needed, consider removing if rendering to left is feasible
+  this.width = 0, this.height = 0;              // width/height = drawing area (16:9), NOT screen size or raphael canvas
+  this.widthSF = 0, this.heightSF = 0;          // scaling factor for converting percentage points of scenes to pixels
+  this.viewportWidth = 0, this.viewportHeight = 0;  // raphael canvas size / viewport size - not all of which will be drawn to
+  this.offsetX = 0, this.offsetY = 0;           // used to position the drawing area in the centre of the screen - must be added to all rendering points
+  
   this.connections = [];    // obj to store connections (paths) between neurons
   this.calculateSize(this.parent.div.id);
   this.div = dom.addChildDiv({"id": mapDivId,"parent":containerDivId});
@@ -281,7 +273,7 @@ function Map(parent, mapDivId, containerDivId) {
     self.fireResize = setTimeout(function() {self.resize();}, 200);
   }, true);
   // init the Raphael canvas
-  this.canvas = Raphael(this.div, this.width, this.height);
+  this.canvas = Raphael(this.div, this.viewportWidth, this.viewportHeight);       // todo: this will be viewportWidth and Height in fact
 };
 
 //todo: neaten up below, create several helper functions, particularly around calculating co-ordinates etc, e.g. a 'getXfromPoint' type function
@@ -296,12 +288,12 @@ Map.prototype.getActiveY = function(neuron) {
 
 // convert a neuron's percentage co-ordinates in a rendering scene
 Map.prototype.getRenderingX = function(neuron) {
-  return this.scaleX(this.rx(neuron) - this.rw(neuron) / 2);
+  return this.scaleX(this.rx(neuron) - this.rw(neuron) / 2) + this.offsetX;
 };
 
 // convert a neuron's percentage y co-ord to its rendering position
 Map.prototype.getRenderingY = function(neuron) {
-  return this.scaleY(this.ry(neuron) - this.rh(neuron) / 2);
+  return this.scaleY(this.ry(neuron) - this.rh(neuron) / 2) + this.offsetY;
 };
 
 // convert a neuron's 
@@ -410,19 +402,18 @@ Map.prototype.animateAdd = function(neurons, callback, iteration) {
       // STUFF RE: TITLE
       //----------
 
-      var x = self.scaleX(self.renderingScene[neuron.id].x);                                               // co-ords of middle of current rect
-      var rectTopY = self.renderingScene[neuron.id].y - (self.renderingScene[neuron.id].height / 2);   // co-ords of top of current rect with 1
+      var x = self.getRenderingX(neuron) + (self.getRenderingWidth(neuron) / 2);     // horizontal centre of current rect
+      var rectTopY = self.getRenderingY(neuron);       // vertical top of current rect
       var lineHeight = self.renderingScene[neuron.id].lineHeight;
-      self.activeScene[neuron.id].title = [];                       // empty array for title elements to live in
+      self.activeScene[neuron.id].title = [];                       // empty array for title elements
       // add a text element for each part of title
       async.eachOf(neuron.title, function(row, index, nextRow) {
         // following is adding height of rows, 0.5 and half of the lineheight 
-
-        var y = (rectTopY + (index * lineHeight) + 0.5 + (lineHeight / 2)) * self.heightSF;
+        var y = rectTopY + self.scaleY(index * lineHeight + 0.5 + (lineHeight / 2));
         if (typeof row === "string") {  // just render text as usual
           var titleRow = self.canvas.text(x, y, row)
             .attr({
-              "font-size": (lineHeight * self.heightSF) / 2,
+              "font-size": self.scaleY(lineHeight) / 2,
               "opacity": 0
             })
             .data("neuronId", neuron.id)
@@ -443,25 +434,30 @@ Map.prototype.animateAdd = function(neurons, callback, iteration) {
         } else if (typeof row === "object") {
           for (var key in row) {
             if (key == "latex") {
+              var fontSize = self.scaleY(lineHeight) / 2;
               var latexElem = document.createElement("DIV");      // element where latex is rendered
               var latexText = katex.renderToString(row[key]);     // text string
+
               latexElem.style.opacity = "0";
               latexElem.innerHTML = latexText;
               latexElem.style.cursor = "pointer";
+
               var latexRow = self.canvas.text(x, y, "").attr({
-                "font-size": (lineHeight * self.heightSF) / 2,
+                "font-size": fontSize,
                 "opacity": 0
               });          // raphael element          
+
               self.activeScene[neuron.id].title.push({
                 "text": latexRow,
                 "div": latexElem
               });
+
               document.body.appendChild(latexElem);
               latexElem.addEventListener('click', function() {
                 self.parent.activate(self.parent.neurons[neuron.id]);
               });
 
-              latexElem.style.fontSize = (lineHeight * self.heightSF) / 2 + "px";
+              latexElem.style.fontSize = fontSize + "px";
               latexElem.style.position = "absolute";
 
               setTimeout(function() { // create a dummy raphael element and use it to animate this one in
@@ -648,8 +644,8 @@ Map.prototype.animateRemove = function(neurons, callback, iteration) {
       x = self.activeScene[neuron.parent.id].rect.attrs.x + self.activeScene[neuron.parent.id].rect.attrs.width / 2;
       y = self.activeScene[neuron.parent.id].rect.attrs.y + self.activeScene[neuron.parent.id].rect.attrs.height / 2;
     } else {                                          // simply animate the neuron to its own centre
-      x = self.activeScene[neuron.id].rect.attrs.x;
-      y = self.activeScene[neuron.id].rect.attrs.y;
+      x = self.activeScene[neuron.id].rect.attrs.x + self.activeScene[neuron.id].rect.attrs.width / 2;
+      y = self.activeScene[neuron.id].rect.attrs.y + self.activeScene[neuron.id].rect.attrs.height / 2;
     }
     // remove connecting lines
     // todo: animate these out
@@ -688,6 +684,9 @@ Map.prototype.calculateSize = function(containerDivId) {
   var containerDivId = containerDivId || this.parent.div.id;
   var containerDiv = document.getElementById(containerDivId);
 
+  this.viewportWidth = containerDiv.offsetWidth;    // viewportHeight and viewportWidth - make entire viewport a raphael canvas
+  this.viewportHeight = containerDiv.offsetHeight;  
+
   if (((containerDiv.offsetWidth / 16) * 9) > containerDiv.offsetHeight) {  // if wider than 16:9 ratio, calculate width based on height
     this.height = containerDiv.offsetHeight;
     this.width = (this.height / 9) * 16;
@@ -695,8 +694,14 @@ Map.prototype.calculateSize = function(containerDivId) {
     this.width = containerDiv.offsetWidth;
     this.height = (this.width / 16) * 9;
   }
+
   this.widthSF = this.width / 100;      // width scaling factor for percentage co-ords
   this.heightSF = this.height / 100;    // height scaling factor for percentage co-ords
+
+  this.offsetX = (this.viewportWidth - this.width) / 2;     // now this.offsetX and this.offsetY can be applied to keep the map centred
+  this.offsetY = (this.viewportHeight - this.height) / 2;
+
+  console.log("offsetX: " + this.offsetX + ", offsetY: " + this.offsetY);
 
   // todo: vertical positioning (center)
   // todo: incorporate view mode (i.e. if we are viewing a resource)
@@ -749,7 +754,6 @@ Map.prototype.render = function(neuron, callback) {
   this.renderingScene = neuron.scene;
   this.rendering = true;
 
-  this.greatestX = 0, this.lowestX = 100, this.greatestY = 0, this.lowestY = 100;
   var animations = { remove: [], anchor: [], move: [], add: [] };
   var anchorGreatestX = this.width, anchorLowestX = 0, anchorGreatestY = this.height, anchorLowestY = 0;
 
@@ -780,25 +784,27 @@ Map.prototype.render = function(neuron, callback) {
     function(callback) {  // check what neurons need to be moved
       if (self.activeNeuron !== null) {
         // calculate difference between new active neuron's position in new scene and current scene
-        var offsetX = self.scaleX(self.ax(self.renderingNeuron) - self.rx(self.renderingNeuron));
-        var offsetY = self.scaleY(self.ay(self.renderingNeuron) - self.ry(self.renderingNeuron));
+        var sceneOffsetX = self.scaleX(self.ax(self.renderingNeuron) - self.rx(self.renderingNeuron));
+        var sceneOffsetY = self.scaleY(self.ay(self.renderingNeuron) - self.ry(self.renderingNeuron));
+
+        // anchor part is broken
+        // offset = difference between new active node's position in the current scene and its position in the new scene (centre co-ordinates)
 
         async.each(self.activeScene, function(neuron, nextNeuron) {
           if (containsNeuron(self.renderingScene, neuron)) {   // if neuron exists in activeScene and renderingScene, it needs to be moved
-           
             animations.anchor.push({
               id: neuron.id,
-              x: self.getRenderingX(neuron) + offsetX,     // todo: have to do something here to check none of the offsets take us off the screen
-              y: self.getRenderingY(neuron) + offsetY,     // todo: and here
+              x: self.getRenderingX(neuron) + sceneOffsetX,     // todo: have to do something here to check none of the offsets take us off the screen
+              y: self.getRenderingY(neuron) + sceneOffsetY,     // todo: and here
               width: self.getRenderingWidth(neuron),
               height: self.getRenderingHeight(neuron)
             });
 
             // track any of the neurons which have gone beyond the edge of the canvas, which will be used to offset when animating moves
-            if (self.getRenderingX(neuron) + offsetX < anchorLowestX) anchorLowestX = self.getRenderingX(neuron) + offsetX;
-            if (self.getRenderingX(neuron) + self.getRenderingWidth(neuron) + offsetX > anchorGreatestX) anchorGreatestX = self.getRenderingX(neuron) + self.getRenderingWidth(neuron) + offsetX;
-            if (self.getRenderingY(neuron) + offsetY < anchorLowestY) anchorLowestY = self.getRenderingY(neuron) + offsetY;
-            if (self.getRenderingY(neuron) + self.getRenderingHeight(neuron) + offsetY > anchorGreatestY) anchorGreatestY = self.getRenderingY(neuron) + self.getRenderingHeight(neuron) + offsetY;
+            if (self.getRenderingX(neuron) + sceneOffsetX < anchorLowestX) anchorLowestX = self.getRenderingX(neuron) + sceneOffsetX;
+            if (self.getRenderingX(neuron) + self.getRenderingWidth(neuron) + sceneOffsetX > anchorGreatestX) anchorGreatestX = self.getRenderingX(neuron) + self.getRenderingWidth(neuron) + sceneOffsetX;
+            if (self.getRenderingY(neuron) + sceneOffsetY < anchorLowestY) anchorLowestY = self.getRenderingY(neuron) + sceneOffsetY;
+            if (self.getRenderingY(neuron) + self.getRenderingHeight(neuron) + sceneOffsetY > anchorGreatestY) anchorGreatestY = self.getRenderingY(neuron) + self.getRenderingHeight(neuron) + sceneOffsetY;
 
             animations.move.push({
               id: neuron.id,
@@ -817,29 +823,36 @@ Map.prototype.render = function(neuron, callback) {
     },
     function(callback) {  // move ancestors to new sizes and positions relative to new active neuron
       if (animations.anchor.length > 0) {
-        var offsetX = 0, offsetY = 0;
-        if (anchorLowestX < 0) offsetX = -anchorLowestX + self.scaleX(4);
-        if (anchorGreatestX > self.width) offsetX = (self.width - anchorGreatestX) - self.scaleX(4);
-        if (anchorLowestY < 0) offsetY = -anchorLowestY + self.scaleY(4);
-        if (anchorGreatestY > self.height) offsetY = (self.height - anchorGreatestY) - self.scaleY(4);
+        console.log("doing anchor animation");
+        console.log(animations.anchor);
+        var anchorOffsetX = 0, anchorOffsetY = 0;
+        // apply anchor offsets to prevent rects going off screen
+        if (anchorLowestX < 0) anchorOffsetX = -anchorLowestX + self.scaleX(4);
+        if (anchorGreatestX > self.width) anchorOffsetX = (self.width - anchorGreatestX) - self.scaleX(4);
+        if (anchorLowestY < 0) anchorOffsetY = -anchorLowestY + self.scaleY(4);
+        if (anchorGreatestY > self.height) anchorOffsetY = (self.height - anchorGreatestY) - self.scaleY(4);
 
-        self.animateMove(animations.anchor, offsetX, offsetY, function() {
+        // todo: will need to also apply a 'centreing' offset so the draw canvas gets centred in the screen
+
+        self.animateMove(animations.anchor, anchorOffsetX, anchorOffsetY, function() {
           callback();
         });
       } else callback();
     },
     function(callback) {  // move whole structure to new position (new scene)
       if (animations.move.length > 0) {
-        var offsetX = 0;
-        var offsetY = 0;
-        self.animateMove(animations.move, offsetX, offsetY, function() {
+        var moveOffsetX = 0;
+        var moveOffsetY = 0;
+        console.log("doing move animation");
+        // todo: apply centreing of drawing area of canvas
+
+        self.animateMove(animations.move, moveOffsetX, moveOffsetY, function() {
           callback();
         });
       } else callback();
     },
     function(callback) {  // determine which neurons need to be added to scene
       async.each(self.renderingScene, function(neuron, next) {
-        self.updateBoundingPoints(neuron);
         if (!containsNeuron(self.activeScene, neuron)) animations.add.push(neuron.id);
         next();
       },
@@ -868,25 +881,9 @@ Map.prototype.render = function(neuron, callback) {
 //-------------------------
 Map.prototype.resize = function() {
   this.calculateSize();
-  this.canvas.setSize(this.width, this.height);
+  this.canvas.setSize(this.viewportWidth, this.viewportHeight);     // todo: this should be viewportWidth and viewportHeight once offsets etc are done
   this.render(this.activeNeuron);
 };
-
-//-------------------------
-// Map.updateBoundingPoints(neuron)
-// -
-// maintains map.greatestX, lowestX, greatestY, lowestY, by seeing if neuron is greater or lower than them etc.
-//-------------------------
-Map.prototype.updateBoundingPoints = function(neuron) {
-  var x = this.rx(neuron);
-  var y = this.ry(neuron);
-  var width = this.rw(neuron);
-  var height = this.rh(neuron);
-  if (this.greatestX < x + width / 2) this.greatestX = x + width / 2;
-  if (this.lowestX > x - width / 2) this.lowestX = x - width / 2;
-  if (this.greatestY < y + height / 2) this.greatestY = y + height / 2;
-  if (this.lowestY > y - height / 2) this.lowestY = y - height / 2;
-}
 
 var hasChildren = function(neuron) {
   return typeof neuron.children !== 'undefined';
