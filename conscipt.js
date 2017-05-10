@@ -564,7 +564,7 @@ Map.prototype.animateMove = function(animations, offsetX, offsetY, callback, ite
       var lineHeight = (animation.height / neuronToAnimate.title.length) - 1;
       var y = (rectTopY + (index * lineHeight) + 0.5 + (lineHeight / 2));
 
-      row.text.animate({    // todo, here animate to new position as per setting when adding.
+      row.text.animate({
         "x": x + offsetX,
         "y": y + offsetY,
         "font-size": lineHeight / 2,
@@ -695,8 +695,6 @@ Map.prototype.calculateSize = function(containerDivId) {
   this.offsetX = (this.viewportWidth - this.width) / 2;     // now this.offsetX and this.offsetY can be applied to keep the map centred
   this.offsetY = (this.viewportHeight - this.height) / 2;
 
-  console.log("offsetX: " + this.offsetX + ", offsetY: " + this.offsetY);
-
   // todo: incorporate view mode (i.e. if we are viewing a resource)
   // todo: incorporate view mode (i.e. portrait vs landscape, small screen)
 };
@@ -816,18 +814,13 @@ Map.prototype.render = function(neuron, callback) {
     },
     function(callback) {  // move ancestors to new sizes and positions relative to new active neuron
       if (animations.anchor.length > 0) {
-        console.log("doing anchor animation");
-        console.log(animations.anchor);
-        var anchorOffsetX = 0, anchorOffsetY = 0;
 
+        var anchorOffsetX = 0, anchorOffsetY = 0;
         // apply anchor offsets to prevent rects going off screen
         if (anchorLowestX < 0) anchorOffsetX = -anchorLowestX + self.scaleX(4);
         if (anchorGreatestX > self.viewportWidth) anchorOffsetX = (self.viewportWidth - anchorGreatestX) - self.scaleX(4);
         if (anchorLowestY < 0) anchorOffsetY = -anchorLowestY + self.scaleY(4);
         if (anchorGreatestY > self.viewportHeight) anchorOffsetY = (self.viewportHeight - anchorGreatestY) - self.scaleY(4);
-
-        console.log("anchorGreatestX: " + anchorGreatestX + ", anchorGreatestY: " + anchorGreatestY);
-        console.log("anchorOffsetX: " + anchorOffsetX + ", anchorOffsetY: " + anchorOffsetY);
 
         self.animateMove(animations.anchor, anchorOffsetX, anchorOffsetY, function() {
           callback();
@@ -838,10 +831,6 @@ Map.prototype.render = function(neuron, callback) {
       if (animations.move.length > 0) {
         var moveOffsetX = 0;
         var moveOffsetY = 0;
-        console.log("doing move animation");
-        console.log(animations.move);
-        // todo: apply centreing of drawing area of canvas
-
         self.animateMove(animations.move, moveOffsetX, moveOffsetY, function() {
           callback();
         });
