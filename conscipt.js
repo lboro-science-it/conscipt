@@ -273,10 +273,8 @@ function Map(parent, mapDivId, containerDivId) {
     self.fireResize = setTimeout(function() {self.resize();}, 200);
   }, true);
   // init the Raphael canvas
-  this.canvas = Raphael(this.div, this.viewportWidth, this.viewportHeight);       // todo: this will be viewportWidth and Height in fact
+  this.canvas = Raphael(this.div, this.viewportWidth, this.viewportHeight);   
 };
-
-//todo: neaten up below, create several helper functions, particularly around calculating co-ordinates etc, e.g. a 'getXfromPoint' type function
 
 Map.prototype.getActiveX = function(neuron) {
   return this.scaleX(this.ax(neuron) - this.aw(neuron) / 2);
@@ -530,8 +528,6 @@ Map.prototype.animateMove = function(animations, offsetX, offsetY, callback, ite
     // animate moving the connections here
   }
 
-  // todo: KATEX elements aren't moving when it's a Zii, fix it
-
   //----------
   // TITLES
   //----------
@@ -588,11 +584,9 @@ Map.prototype.animateMove = function(animations, offsetX, offsetY, callback, ite
   neuronToAnimate.rect.animate({
     "x": animation.x + offsetX,
     "y": animation.y + offsetY,
-    "width": animation.width, // todo: function to calculate width w/ SF
-    "height": animation.height // todo: put height in here!
-    // todo: insert code to move the neuron to its new position and size
+    "width": animation.width, 
+    "height": animation.height
   }, 500, "linear", function() {
-  //  if (iteration == 0) eve.unbind('raphael.anim.frame.' + neuronToAnimate.rect.id, onAnimate);
     if (iteration + 1 == animations.length) callback();  // callback only gets called when the last one is done
   });
 
@@ -703,7 +697,6 @@ Map.prototype.calculateSize = function(containerDivId) {
 
   console.log("offsetX: " + this.offsetX + ", offsetY: " + this.offsetY);
 
-  // todo: vertical positioning (center)
   // todo: incorporate view mode (i.e. if we are viewing a resource)
   // todo: incorporate view mode (i.e. portrait vs landscape, small screen)
 };
@@ -794,8 +787,8 @@ Map.prototype.render = function(neuron, callback) {
           if (containsNeuron(self.renderingScene, neuron)) {   // if neuron exists in activeScene and renderingScene, it needs to be moved
             animations.anchor.push({
               id: neuron.id,
-              x: self.getRenderingX(neuron) + sceneOffsetX,     // todo: have to do something here to check none of the offsets take us off the screen
-              y: self.getRenderingY(neuron) + sceneOffsetY,     // todo: and here
+              x: self.getRenderingX(neuron) + sceneOffsetX,
+              y: self.getRenderingY(neuron) + sceneOffsetY,
               width: self.getRenderingWidth(neuron),
               height: self.getRenderingHeight(neuron)
             });
@@ -826,13 +819,15 @@ Map.prototype.render = function(neuron, callback) {
         console.log("doing anchor animation");
         console.log(animations.anchor);
         var anchorOffsetX = 0, anchorOffsetY = 0;
+
         // apply anchor offsets to prevent rects going off screen
         if (anchorLowestX < 0) anchorOffsetX = -anchorLowestX + self.scaleX(4);
-        if (anchorGreatestX > self.width) anchorOffsetX = (self.width - anchorGreatestX) - self.scaleX(4);
+        if (anchorGreatestX > self.viewportWidth) anchorOffsetX = (self.viewportWidth - anchorGreatestX) - self.scaleX(4);
         if (anchorLowestY < 0) anchorOffsetY = -anchorLowestY + self.scaleY(4);
-        if (anchorGreatestY > self.height) anchorOffsetY = (self.height - anchorGreatestY) - self.scaleY(4);
+        if (anchorGreatestY > self.viewportHeight) anchorOffsetY = (self.viewportHeight - anchorGreatestY) - self.scaleY(4);
 
-        // todo: will need to also apply a 'centreing' offset so the draw canvas gets centred in the screen
+        console.log("anchorGreatestX: " + anchorGreatestX + ", anchorGreatestY: " + anchorGreatestY);
+        console.log("anchorOffsetX: " + anchorOffsetX + ", anchorOffsetY: " + anchorOffsetY);
 
         self.animateMove(animations.anchor, anchorOffsetX, anchorOffsetY, function() {
           callback();
@@ -844,6 +839,7 @@ Map.prototype.render = function(neuron, callback) {
         var moveOffsetX = 0;
         var moveOffsetY = 0;
         console.log("doing move animation");
+        console.log(animations.move);
         // todo: apply centreing of drawing area of canvas
 
         self.animateMove(animations.move, moveOffsetX, moveOffsetY, function() {
@@ -881,7 +877,7 @@ Map.prototype.render = function(neuron, callback) {
 //-------------------------
 Map.prototype.resize = function() {
   this.calculateSize();
-  this.canvas.setSize(this.viewportWidth, this.viewportHeight);     // todo: this should be viewportWidth and viewportHeight once offsets etc are done
+  this.canvas.setSize(this.viewportWidth, this.viewportHeight);
   this.render(this.activeNeuron);
 };
 
