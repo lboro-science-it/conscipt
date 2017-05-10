@@ -751,7 +751,7 @@ Map.prototype.render = function(neuron, callback) {
 
   this.greatestX = 0, this.lowestX = 100, this.greatestY = 0, this.lowestY = 100;
   var animations = { remove: [], anchor: [], move: [], add: [] };
-  var anchorGreatestX = 0, anchorLowestX = this.width, anchorGreatestY = 0, anchorLowestY = this.height;
+  var anchorGreatestX = this.width, anchorLowestX = 0, anchorGreatestY = this.height, anchorLowestY = 0;
 
   async.series([          
     function(callback) {  // check what neurons need to be removed from scene, in order starting from activeNeuron
@@ -796,11 +796,9 @@ Map.prototype.render = function(neuron, callback) {
 
             // track any of the neurons which have gone beyond the edge of the canvas, which will be used to offset when animating moves
             if (self.getRenderingX(neuron) + offsetX < anchorLowestX) anchorLowestX = self.getRenderingX(neuron) + offsetX;
-            if (self.getRenderingX(neuron) + offsetY > anchorGreatestX) anchorGreatestX = self.getRenderingX(neuron) + offsetX;
+            if (self.getRenderingX(neuron) + self.getRenderingWidth(neuron) + offsetX > anchorGreatestX) anchorGreatestX = self.getRenderingX(neuron) + self.getRenderingWidth(neuron) + offsetX;
             if (self.getRenderingY(neuron) + offsetY < anchorLowestY) anchorLowestY = self.getRenderingY(neuron) + offsetY;
-            if (self.getRenderingY(neuron) + offsetY > anchorGreatestY) anchorGreatestY = self.getRenderingY(neuron) + offsetY;
-
-            console.log(self.getRenderingX(neuron) + offsetX);
+            if (self.getRenderingY(neuron) + self.getRenderingHeight(neuron) + offsetY > anchorGreatestY) anchorGreatestY = self.getRenderingY(neuron) + self.getRenderingHeight(neuron) + offsetY;
 
             animations.move.push({
               id: neuron.id,
@@ -819,8 +817,12 @@ Map.prototype.render = function(neuron, callback) {
     },
     function(callback) {  // move ancestors to new sizes and positions relative to new active neuron
       if (animations.anchor.length > 0) {
-        var offsetX = 0;
-        var offsetY = 0;
+        var offsetX = 0, offsetY = 0;
+        if (anchorLowestX < 0) offsetX = -anchorLowestX + self.scaleX(4);
+        if (anchorGreatestX > self.width) offsetX = (self.width - anchorGreatestX) - self.scaleX(4);
+        if (anchorLowestY < 0) offsetY = -anchorLowestY + self.scaleY(4);
+        if (anchorGreatestY > self.height) offsetY = (self.height - anchorGreatestY) - self.scaleY(4);
+
         self.animateMove(animations.anchor, offsetX, offsetY, function() {
           callback();
         });
