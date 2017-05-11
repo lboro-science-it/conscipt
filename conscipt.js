@@ -369,6 +369,18 @@ Map.prototype.scaleY = function(y) {
   return y * this.heightSF;
 };
 
+// returns either the centre of the parent (if a neuron has a parent) or the centre of own final position
+Map.prototype.getStartingX = function(neuron) {
+  var neuron = neuron.parent || neuron;
+  return this.getRenderingX(neuron) + this.getRenderingWidth(neuron) / 2;
+};
+
+// return either centre of parent, or centre of own position if no parent
+Map.prototype.getStartingY = function(neuron) {
+  var neuron = neuron.parent || neuron;
+  return this.getRenderingY(neuron) + this.getRenderingHeight(neuron) / 2;
+};
+
 //---------------------------
 // Map.animateAdd(neurons, callback, iteration)
 // -
@@ -385,15 +397,12 @@ Map.prototype.animateAdd = function(neurons, callback, iteration) {
   //----------
   var fill = self.renderingScene[neuron.id].fill || "#fff";
   var border = self.renderingScene[neuron.id].border || "#000";
-  if (n.hasParent(neuron)) {       // if neuron has a parent, create it at parent's co-ords before animating
-    var x = self.getRenderingX(neuron.parent) + self.getRenderingWidth(neuron.parent) / 2;
-    var y = self.getRenderingY(neuron.parent) + self.getRenderingHeight(neuron.parent) / 2;
-  } else {                                          // otherwise create it in place at its own co-ords
-    var x = self.getRenderingX(neuron) + self.getRenderingWidth(neuron) / 2;
-    var y = self.getRenderingY(neuron) + self.getRenderingHeight(neuron) / 2;
-  }
+
+  var startingX = self.getStartingX(neuron);
+  var startingY = self.getStartingY(neuron);
+  
   // draw the rect
-  self.activeScene[neuron.id].rect = self.canvas.rect(x, y, 0, 0)   // start with width/height of 0
+  self.activeScene[neuron.id].rect = self.canvas.rect(startingX, startingY, 0, 0)   // start with width/height of 0
     .attr({
       "fill": fill, 
       "stroke": border, 
@@ -537,26 +546,21 @@ Map.prototype.animateMove = function(animations, offsetX, offsetY, callback, ite
   var self = this;
   if (typeof iteration === 'undefined') var iteration = 0;
 
-  var animation = animations[iteration];
-  var neuronToAnimate = this.activeScene[animation.id];
+  var neuronAnimation = animations[iteration];              // animation object, containing co-ords etc
+  var neuron = this.activeScene[neuronAnimation.id];        // actual neuron object that is being dealt with
 
-  // keep neurons in activeScene up to date
-  this.activeScene[animation.id].x = this.renderingScene[animation.id].x;
-  this.activeScene[animation.id].y = this.renderingScene[animation.id].y;
-  this.activeScene[animation.id].width = this.renderingScene[animation.id].width;
-  this.activeScene[animation.id].height = this.renderingScene[animation.id].height;
-  this.activeScene[animation.id].role = this.renderingScene[animation.id].role;
+  this.updateActiveSceneNeuronProperties(neuronAnimation.id);         // update co-ords of neuron in activeScene to match those in renderingScene
 
-  if (n.containsNeuron(this.connections, neuronToAnimate)) {
+  if (n.containsNeuron(this.connections, neuron)) {
     // animate moving the connections here
   }
 
   //----------
   // TITLES
   //----------
-  async.eachOf(neuronToAnimate.title, function(row, index, nextRow) {
+  async.eachOf(neuron.title, function(row, index, nextRow) {
     var fontSize = row.text.attrs["font-size"]
-    if (neuronToAnimate.role == "zii") {      // hide ZII neurons
+    if (neuron.role == "zii") {      // hide ZII neurons
       if (typeof row.div !== 'undefined') {
         eve.on('raphael.anim.frame.' + row.text.id, onAnimate = function(i) {
           row.div.style.opacity = this.attrs.opacity;
@@ -566,8 +570,8 @@ Map.prototype.animateMove = function(animations, offsetX, offsetY, callback, ite
       }
       row.text.animate({
         "opacity": 0,
-        "x": animation.x + offsetX + (animation.width / 2),
-        "y": animation.y + offsetY + (animation.height / 2)
+        "x": neuronAnimation.x + offsetX + (neuronAnimation.width / 2),
+        "y": neuronAnimation.y + offsetY + (neuronAnimation.height / 2)
       }, self.config.animations.move.duration, "linear", function() {
         if (typeof row.div !== 'undefined') eve.unbind('raphael.anim.frame.' + row.text.id, onAnimate);
       });
@@ -582,9 +586,9 @@ Map.prototype.animateMove = function(animations, offsetX, offsetY, callback, ite
       }
 
       // stuff used for positioning titles that remain visible
-      var x = animation.x + (animation.width / 2);
-      var rectTopY = animation.y;
-      var lineHeight = (animation.height / neuronToAnimate.title.length) - 1;
+      var x = neuronAnimation.x + (neuronAnimation.width / 2);
+      var rectTopY = neuronAnimation.y;
+      var lineHeight = (neuronAnimation.height / neuron.title.length) - 1;
       var y = (rectTopY + (index * lineHeight) + 0.5 + (lineHeight / 2));
 
       row.text.animate({
@@ -604,11 +608,11 @@ Map.prototype.animateMove = function(animations, offsetX, offsetY, callback, ite
   // MOVE TITLES THAT WILL BE VISIBLE
   //----------
 
-  neuronToAnimate.rect.animate({
-    "x": animation.x + offsetX,
-    "y": animation.y + offsetY,
-    "width": animation.width, 
-    "height": animation.height
+  neuron.rect.animate({
+    "x": neuronAnimation.x + offsetX,
+    "y": neuronAnimation.y + offsetY,
+    "width": neuronAnimation.width, 
+    "height": neuronAnimation.height
   }, self.config.animations.move.duration, "linear", function() {
     if (iteration + 1 == animations.length) callback();  // callback only gets called when the last one is done
   });
@@ -893,7 +897,18 @@ Map.prototype.resize = function() {
   this.render(this.activeNeuron);
 };
 
-
+//-------------------------
+// Map.updateActiveSceneNeuron
+// -
+// Updates co-ords, widths, etc of a neuron in active scene based on renderingScene
+//-------------------------
+Map.prototype.updateActiveSceneNeuronProperties = function(neuronId) {
+  this.activeScene[neuronId].x = this.renderingScene[neuronId].x;
+  this.activeScene[neuronId].y = this.renderingScene[neuronId].y;
+  this.activeScene[neuronId].width = this.renderingScene[neuronId].width;
+  this.activeScene[neuronId].height = this.renderingScene[neuronId].height;
+  this.activeScene[neuronId].role = this.renderingScene[neuronId].role;
+};
 },{"./dom":4,"./neuron":6,"async":8,"extend":9,"katex":10,"raphael":35}],6:[function(require,module,exports){
 // neuron.js - stuff pertaining to neuron(s) - angles, positions, scenes, etc
 
