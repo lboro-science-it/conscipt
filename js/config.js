@@ -64,6 +64,20 @@ module.exports = {
         "border-color": "#000000",
         "fill": "#fffff0"
       }
+    },
+    "animations": {
+      "add": {
+        "interval": 100,
+        "duration": 500
+      },
+      "remove": {
+        "interval": 100,
+        "duration": 500
+      },
+      "move": {
+        "interval": 0,
+        "duration": 500
+      }
     }
   },
   // merge passed config with defaults

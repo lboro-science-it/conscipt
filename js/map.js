@@ -15,28 +15,32 @@ module.exports = Map;
 //----------------------
 function Map(parent, mapDivId, containerDivId) {
   var self = this;
-  this.parent = parent;     // reference to Conscipt instance (so parent.neurons etc can be accessed)
+  this.parent = parent;     // reference to Conscipt instance (so parent.neurons etc can be accessed
   this.neurons = this.parent.neurons; 
-  // scene state-related stuff
-  this.activeScene = {};      // object that stores co-ords and Raphael objects of visible neurons
-  this.activeNeuron = null;     // refers to the actual neuron object that is currently active
-  this.renderingScene = {};   // refers to the actual scene object that is currently rendering
-  this.renderingNeuron = {};  // refers to the actual neuron object that is currently rendering
-  this.rendering = false;
-  // map overall stuff
-  this.width = 0, this.height = 0;              // width/height = drawing area (16:9), NOT screen size or raphael canvas
-  this.widthSF = 0, this.heightSF = 0;          // scaling factor for converting percentage points of scenes to pixels
-  this.viewportWidth = 0, this.viewportHeight = 0;  // raphael canvas size / viewport size - not all of which will be drawn to
-  this.offsetX = 0, this.offsetY = 0;           // used to position the drawing area in the centre of the screen - must be added to all rendering points
+  this.config = this.parent.config;
   
+  // scene state-related stuff
+  this.activeScene = {}, this.activeNeuron = null;      // contains % co-ords etc for currently visible scene
+  this.renderingScene = {}, this.renderingNeuron = {};  // contains % co-ords etc for currently rendering neuron / scene
+  this.rendering = false;
+  
+  // map overall stuff
+  this.width = 0, this.height = 0;                      // width/height = drawing area (16:9), NOT screen size or raphael canvas
+  this.widthSF = 0, this.heightSF = 0;                  // scaling factor for converting percentage points of scenes to pixels
+  this.viewportWidth = 0, this.viewportHeight = 0;      // viewport size + raphael canvas size - not all of which will be drawn to
+  this.offsetX = 0, this.offsetY = 0;                   // (viewportWidth - width) / 2; for centring the biggest possible 16:9 space
+
   this.connections = [];    // obj to store connections (paths) between neurons
-  this.calculateSize(this.parent.div.id);
+  
+  this.calculateSize(this.parent.div.id);               // sets all sizes, offsets, based on parent div size
   this.div = dom.addChildDiv({"id": mapDivId,"parent":containerDivId});
+
   // re-render on resize
   window.addEventListener('resize', function() {
     clearTimeout(self.fireResize);  // only resize after 0.2 seconds
     self.fireResize = setTimeout(function() {self.resize();}, 200);
   }, true);
+  
   // init the Raphael canvas
   this.canvas = Raphael(this.div, this.viewportWidth, this.viewportHeight);   
 };
@@ -159,7 +163,10 @@ Map.prototype.animateAdd = function(neurons, callback, iteration) {
       "y": self.getRenderingY(neuron),
       "width": self.getRenderingWidth(neuron),
       "height": self.getRenderingHeight(neuron)
-    }, 500, "linear", function() {      // rect is animated into place
+    }, self.config.animations.add.duration, "linear", function() {      // rect is animated into place
+
+      // todo: code for dealing with tabIndex stuff per below
+      // self.activeScene[neuron.id].rect[0].tabIndex = 0;
 
       //----------
       // STUFF RE: TITLE
@@ -190,7 +197,7 @@ Map.prototype.animateAdd = function(neurons, callback, iteration) {
             })
             .animate({
               "opacity": 1
-            }, 500, "linear");
+            }, self.config.animations.add.duration, "linear");
           self.activeScene[neuron.id].title.push({
             "text": titleRow
           });
@@ -226,7 +233,7 @@ Map.prototype.animateAdd = function(neurons, callback, iteration) {
               setTimeout(function() { // create a dummy raphael element and use it to animate this one in
                 latexElem.style.top = y - latexElem.offsetHeight / 2 + "px";
                 latexElem.style.left = x - latexElem.offsetWidth / 2 + "px";
-              }, 100);
+              }, 100);    // this is in a setTimeout so that offsetHeight and Width are set in time
 
               eve.on('raphael.anim.frame.' + latexRow.id, onAnimate = function(index) {
                 latexElem.style.opacity = this.attrs.opacity;
@@ -234,7 +241,7 @@ Map.prototype.animateAdd = function(neurons, callback, iteration) {
 
               latexRow.animate({
                 "opacity": 1
-              }, 500, "linear", function() {
+              }, self.config.animations.add.duration, "linear", function() {
                 eve.unbind('raphael.anim.frame.' + latexRow.id, onAnimate);
               });
             } // end if key === latex
@@ -265,7 +272,7 @@ Map.prototype.animateAdd = function(neurons, callback, iteration) {
   if (iteration + 1 < neurons.length) {     // add the next one after 100 ms
     setTimeout(function() {
       self.animateAdd(neurons, callback, iteration + 1);
-    }, 100);
+    }, self.config.animations.add.interval);
   }
 
 };
@@ -310,7 +317,7 @@ Map.prototype.animateMove = function(animations, offsetX, offsetY, callback, ite
         "opacity": 0,
         "x": animation.x + offsetX + (animation.width / 2),
         "y": animation.y + offsetY + (animation.height / 2)
-      }, 500, "linear", function() {
+      }, self.config.animations.move.duration, "linear", function() {
         if (typeof row.div !== 'undefined') eve.unbind('raphael.anim.frame.' + row.text.id, onAnimate);
       });
     } else {    // active, ancestor or child neurons get their titles animated to new position of rect
@@ -334,7 +341,7 @@ Map.prototype.animateMove = function(animations, offsetX, offsetY, callback, ite
         "y": y + offsetY,
         "font-size": lineHeight / 2,
         "opacity": 1
-      }, 500, "linear", function() {
+      }, self.config.animations.move.duration, "linear", function() {
         if (typeof row.div !== 'undefined') eve.unbind('raphael.anim.frame.' + row.text.id, onAnimate);
       })
     }
@@ -351,7 +358,7 @@ Map.prototype.animateMove = function(animations, offsetX, offsetY, callback, ite
     "y": animation.y + offsetY,
     "width": animation.width, 
     "height": animation.height
-  }, 500, "linear", function() {
+  }, self.config.animations.move.duration, "linear", function() {
     if (iteration + 1 == animations.length) callback();  // callback only gets called when the last one is done
   });
 
@@ -382,7 +389,7 @@ Map.prototype.animateRemove = function(neurons, callback, iteration) {
     }
     row.text.animate({
       "opacity": 0
-    }, 500, "linear", function() {
+    }, self.config.animations.remove.duration, "linear", function() {
       if (typeof row.div !== 'undefined') {
         eve.unbind('raphael.anim.frame.' + row.text.id, onAnimate);
         row.div.parentNode.removeChild(row.div);
@@ -418,7 +425,7 @@ Map.prototype.animateRemove = function(neurons, callback, iteration) {
       "width": 0,
       "height": 0,
       "opacity": 0
-    }, 500, "linear", function() {
+    }, self.config.animations.remove.duration, "linear", function() {
       this.remove();                                      // removes the rect instance
       delete self.activeScene[neuron.id];
       if (iteration == neurons.length - 1) callback();    // all animations are complete
@@ -429,7 +436,7 @@ Map.prototype.animateRemove = function(neurons, callback, iteration) {
   if (iteration + 1 < neurons.length) {
     setTimeout(function() {
       self.animateRemove(neurons, callback, iteration + 1);
-    }, 100);
+    }, self.config.animations.remove.interval);
   }
 };
 
