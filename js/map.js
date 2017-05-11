@@ -132,7 +132,7 @@ Map.prototype.getStartingY = function(neuron) {
   return this.getRenderingY(neuron) + this.getRenderingHeight(neuron) / 2;
 };
 
-// function to register click handler for a raphael object to activate a neuron + set cursor
+// register click handler for a raphael object to activate a neuron + set cursor
 Map.prototype.raphOnClickActivate = function(raphaelObj, neuron) {
   var self = this;
   raphaelObj.data("neuronId", neuron.id)
@@ -182,70 +182,61 @@ Map.prototype.animateAddTitle = function(neuron) {
   async.eachOf(neuron.title, function(row, index, nextRow) {        // iterate parts of title
     var y = rectTopY + self.scaleY(index * lineHeight + 0.5 + lineHeight / 2);    // calc position for current row based on lineHeight and a 0.5 padding
     var fontSize = self.scaleY(lineHeight) / 2;
-
-    if (typeof row === "string") {    // create svg text elements for strings
-      var titleRow = self.canvas.text(rectCentreX, y, row)
-      .attr({
-        "font-size": fontSize,
-        "opacity": 0
-      })
-      .animate({
-        "opacity": 1
-      }, self.config.animations.add.duration, "linear", function() {
-        self.raphOnClickActivate(this, neuron);
-      });
-
-      self.activeScene[neuron.id].title.push({
-        "text": titleRow
-      });
-    } else if (typeof row === "object") {     // object can be various other types of title row - probably latex
-      var type = Object.keys(row)[0];          // objects will be in the form {"type": "content"}
-      var content = row[type];
-      if (type == "latex") {
-        var latexElem = document.createElement("DIV");
-        latexElem.innerHTML = katex.renderToString(content);
-        latexElem.style.opacity = "0";
-        document.body.appendChild(latexElem);
-        latexElem.style.cursor = "pointer";
-
-        var titleRow = self.canvas.text(rectCentreX, y, "")   // dummy raphael element to use for animations etc
-        .attr({
-          "font-size": fontSize,
-          "opacity": 0
-        });
-
-        self.activeScene[neuron.id].title.push({
-          "text": titleRow,
-          "div": latexElem
-        });
-
-        latexElem.addEventListener('click', function() {
-          self.parent.activate(self.parent.neurons[neuron.id]);
-        });
-
-        latexElem.style.fontSize = fontSize + "px";
-        latexElem.style.position = "absolute";
-
-        setTimeout(function() {   // ensure latexElem content is fully rendered (width is correct) before positioning it
-          latexElem.style.top = y - latexElem.offsetHeight / 2 + "px";
-          latexElem.style.left = rectCentreX - latexElem.offsetWidth / 2 + "px";
-        }, 100);
-
-        eve.on('raphael.anim.frame.' + titleRow.id, onAnimate = function(index) {   // use dummy elem animation to animate latex div
-          latexElem.style.opacity = this.attrs.opacity;
-        });
-
-        titleRow.animate({
-          "opacity": 1
-        }, self.config.animations.add.duration, "linear", function() {
-          eve.unbind('raphael.anim.frame.' + titleRow.id, onAnimate);
-        });
-
-      }
+    var content, type;
+    if (typeof row === "string") {            // create svg text element for strings in array
+      type = "string";
+      textContent = row;                      // svg text element will contain the content
+    } else if (typeof row === "object") {     // process object enabling custom title types
+      type = Object.keys(row)[0];
+      textContent = "";                       // svg text element will be empty but used for animations etc
+      customContent = row[type];              // custom content will be overlaid onto svg element
     }
 
-  });
+    var titleRow = self.canvas.text(rectCentreX, y, textContent)
+    .attr({                                   // create a raphael text object for the row
+      "font-size": fontSize,
+      "opacity": 0
+    });
 
+    var titleObj = {                          // object to keep track of raphael objects / divs for a given neuron
+      "text": titleRow
+    };
+
+    if (type == "latex") {
+
+      var latexElem = document.createElement("DIV");
+      latexElem.innerHTML = katex.renderToString(customContent);
+      latexElem.style.opacity = "0";
+      document.body.appendChild(latexElem);
+      latexElem.style.cursor = "pointer";
+
+      latexElem.addEventListener('click', function() {
+        self.parent.activate(self.parent.neurons[neuron.id]);
+      });
+
+      latexElem.style.fontSize = fontSize + "px";
+      latexElem.style.position = "absolute";
+
+      setTimeout(function() {   // ensure latexElem content is fully rendered (width is correct) before positioning it
+        latexElem.style.top = y - latexElem.offsetHeight / 2 + "px";
+        latexElem.style.left = rectCentreX - latexElem.offsetWidth / 2 + "px";
+      }, 100);
+
+      eve.on('raphael.anim.frame.' + titleRow.id, onAnimate = function(index) {   // use dummy elem animation to animate latex div
+        latexElem.style.opacity = this.attrs.opacity;
+      });
+      titleObj.div = latexElem;
+    }
+    
+    titleRow.animate({
+      "opacity": 1
+    }, self.config.animations.add.duration, "linear", function() {
+      if (type == "string") self.raphOnClickActivate(this, neuron);
+      if (type == "latex") eve.unbind('raphael.anim.frame.' + titleRow.id, onAnimate);
+    });
+
+    self.activeScene[neuron.id].title.push(titleObj);
+  });
 };
 
 //---------------------------
