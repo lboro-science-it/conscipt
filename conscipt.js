@@ -266,9 +266,7 @@ module.exports = Map;
 //----------------------
 function Map(parent, mapDivId, containerDivId) {
   var self = this;
-  this.parent = parent;     // reference to Conscipt instance (so parent.neurons etc can be accessed
-  this.neurons = this.parent.neurons; 
-  this.config = this.parent.config;
+  this.parent = parent;                                 // allow reference to pare
   
   // scene state-related stuff
   this.activeScene = {}, this.activeNeuron = null;      // contains % co-ords etc for currently visible scene
@@ -398,7 +396,7 @@ Map.prototype.raphOnClickActivate = function(raphaelObj, neuron) {
   var self = this;
   raphaelObj.data("neuronId", neuron.id)
   .click(function() {
-    self.parent.activate(self.parent.neurons[this.data("neuronId")]);
+    self.parent.activate(self.getNeuron(this.data("neuronId")));
   })
   .hover(function() {
     this.attr({"cursor": "pointer"});
@@ -425,7 +423,7 @@ Map.prototype.animateAddRect = function(neuron, callback) {
     "y": self.getRenderingY(neuron),
     "width": self.getRenderingWidth(neuron),
     "height": self.getRenderingHeight(neuron)
-  }, self.config.animations.add.duration, "linear", function() {  // by here, rect is animated into place
+  }, self.parent.config.animations.add.duration, "linear", function() {  // by here, rect is animated into place
     self.raphOnClickActivate(this, neuron);
     // todo: deal with tabindex stuff
     // self.activeScene[neuron.id].rect[0].tabIndex = 0;
@@ -474,7 +472,7 @@ Map.prototype.animateAddTitle = function(neuron) {
 
       latexElem.innerHTML = katex.renderToString(customContent);
       latexElem.addEventListener('click', function() {
-        self.parent.activate(self.parent.neurons[neuron.id]);
+        self.parent.activate(self.getNeuron(neuron.id));
       });
 
       setTimeout(function() {   // ensure latexElem content is fully rendered (width is correct) before positioning it
@@ -492,7 +490,7 @@ Map.prototype.animateAddTitle = function(neuron) {
     
     titleObj.text.animate({
       "opacity": 1
-    }, self.config.animations.add.duration, "linear", function() {
+    }, self.parent.config.animations.add.duration, "linear", function() {
       if (type == "string") self.raphOnClickActivate(this, neuron);
       if (type == "latex") eve.unbind('raphael.anim.frame.' + titleObj.text.id, onAnimate);
     });
@@ -507,7 +505,7 @@ Map.prototype.animateAddTitle = function(neuron) {
 Map.prototype.animateAdd = function(neurons, callback, iteration) {
   var self = this;
   if (typeof iteration === 'undefined') var iteration = 0;
-  var neuron = self.neurons[neurons[iteration]];     // neuron object, use to check if it has a parent, so we know how to animate it in
+  var neuron = self.getNeuron(neurons[iteration]);     // neuron object, use to check if it has a parent, so we know how to animate it in
   self.activeScene[neuron.id] = extend(true, {}, self.renderingScene[neuron.id]);  // clone the details from renderingScene (co-ords, etc)
   
   self.animateAddRect(neuron, function() {            // animate the rect in
@@ -519,7 +517,7 @@ Map.prototype.animateAdd = function(neurons, callback, iteration) {
   if (iteration + 1 < neurons.length) {               // still neurons to animate, move to the next iteration
     setTimeout(function() {
       self.animateAdd(neurons, callback, iteration + 1);
-    }, self.config.animations.add.interval);
+    }, self.parent.config.animations.add.interval);
   }
 
   //----------
@@ -577,7 +575,7 @@ Map.prototype.animateMove = function(animations, offsetX, offsetY, callback, ite
         "opacity": 0,
         "x": neuronAnimation.x + offsetX + (neuronAnimation.width / 2),
         "y": neuronAnimation.y + offsetY + (neuronAnimation.height / 2)
-      }, self.config.animations.move.duration, "linear", function() {
+      }, self.parent.config.animations.move.duration, "linear", function() {
         if (typeof row.div !== 'undefined') eve.unbind('raphael.anim.frame.' + row.text.id, onAnimate);
       });
     } else {    // active, ancestor or child neurons get their titles animated to new position of rect
@@ -601,7 +599,7 @@ Map.prototype.animateMove = function(animations, offsetX, offsetY, callback, ite
         "y": y + offsetY,
         "font-size": lineHeight / 2,
         "opacity": 1
-      }, self.config.animations.move.duration, "linear", function() {
+      }, self.parent.config.animations.move.duration, "linear", function() {
         if (typeof row.div !== 'undefined') eve.unbind('raphael.anim.frame.' + row.text.id, onAnimate);
       })
     }
@@ -618,7 +616,7 @@ Map.prototype.animateMove = function(animations, offsetX, offsetY, callback, ite
     "y": neuronAnimation.y + offsetY,
     "width": neuronAnimation.width, 
     "height": neuronAnimation.height
-  }, self.config.animations.move.duration, "linear", function() {
+  }, self.parent.config.animations.move.duration, "linear", function() {
     if (iteration + 1 == animations.length) callback();  // callback only gets called when the last one is done
   });
 
@@ -640,7 +638,7 @@ Map.prototype.animateRemoveTitle = function(neuron, callback) {
     }
     row.text.animate({                                            // row.text = raphael elem of this title row
       "opacity": 0
-    }, self.config.animations.remove.duration, "linear", function() {
+    }, self.parent.config.animations.remove.duration, "linear", function() {
       if (isLatex) {
         eve.unbind('raphael.anim.frame.' + row.text.id, onAnimate);
         row.div.parentNode.removeChild(row.div);
@@ -662,15 +660,13 @@ Map.prototype.animateRemoveRect = function(neuron, callback) {
   var x = self.getOriginX(neuron, "active");      // we are gonna remove it either to its parent's co-ords, or its own co-ords if it doesn't have a parent
   var y = self.getOriginY(neuron, "active");
 
-  // possibly put line stuff here
-
   neuronSceneObj.rect.animate({
     "x": x,
     "y": y,
     "width": 0,
     "height": 0,
     "opacity": 0
-  }, self.config.animations.remove.duration, "linear", function() {
+  }, self.parent.config.animations.remove.duration, "linear", function() {
     this.remove();
     delete self.activeScene[neuron.id];
     callback();
@@ -685,11 +681,10 @@ Map.prototype.animateRemoveRect = function(neuron, callback) {
 Map.prototype.animateRemove = function(neurons, callback, iteration) {
   var self = this;
   if (typeof iteration === 'undefined') var iteration = 0;
-  var neuron = self.neurons[neurons[iteration]];     // neuron object of neuron to delete
-  var neuronToDelete = self.activeScene[neuron.id]; // neuron object in scene
+  var neuron = self.getNeuron(neurons[iteration]);     // neuron object of neuron to delete
 
   this.animateRemoveTitle(neuron, function() {
-    self.animateRemoveRect(neuron, function() {
+    self.animateRemoveRect(neuron, function() {         // only remove the rect once the title animation completes
       if (iteration == neurons.length - 1) callback();  // callback once the last neuron rect remove has been animated
     });
   });
@@ -697,7 +692,7 @@ Map.prototype.animateRemove = function(neurons, callback, iteration) {
   if (iteration + 1 < neurons.length) {                 // call next animateRemove for next neuron that needs removing
     setTimeout(function() {
       self.animateRemove(neurons, callback, iteration + 1);
-    }, self.config.animations.remove.interval);
+    }, self.parent.config.animations.remove.interval);
   }
 };
 
@@ -736,7 +731,7 @@ Map.prototype.calculateSize = function(containerDivId) {
 Map.prototype.findAncestorsToRemove = function(neuron, activeNeuron, newScene, recursing, callback) {
   var self = this;
   if (n.containsNeuron(this.activeScene, neuron)) {   // only bother if the neuron exists in the current scene
-    var neuron = this.neurons[neuron.id];
+    var neuron = this.getNeuron(neuron.id);
     if (n.hasParent(neuron)) {   // if neuron has an ancestor, check if it's in the scene and so may need removing
       var ancestor = neuron.parent;
       self.findChildrenToRemove(ancestor, activeNeuron, newScene, true, callback);    // todo: need to have a way to ignore neuron here
@@ -751,7 +746,7 @@ Map.prototype.findAncestorsToRemove = function(neuron, activeNeuron, newScene, r
 Map.prototype.findChildrenToRemove = function(neuron, activeNeuron, newScene, recursing, callback) {
   var self = this;
   if (n.containsNeuron(this.activeScene, neuron)) { // only check when the neuron is in the active scene
-    var neuron = this.neurons[neuron.id];  // get the neuron object of the neuron who's children we are looking for
+    var neuron = this.getNeuron(neuron.id);  // get the neuron object of the neuron who's children we are looking for
     if (n.hasChildren(neuron)) {   // if neuron has children, first check if they are in the scene and need removing
       async.each(neuron.children, function(child, nextChild) {
         // checking child.id != activeNeuron.id allows ancestorsToRemove to use this function without searching itself
@@ -765,6 +760,10 @@ Map.prototype.findChildrenToRemove = function(neuron, activeNeuron, newScene, re
       if (!recursing &&  !n.containsNeuron(newScene, neuron)) callback(neuron); 
     }
   }
+};
+
+Map.prototype.getNeuron = function(neuronId) {
+  return this.parent.neurons[neuronId];
 };
 
 //------------------------
