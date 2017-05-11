@@ -381,6 +381,40 @@ Map.prototype.getStartingY = function(neuron) {
   return this.getRenderingY(neuron) + this.getRenderingHeight(neuron) / 2;
 };
 
+Map.prototype.animateAddRect = function(neuron, callback) {
+  var self = this;
+  var startingX = this.getStartingX(neuron);
+  var startingY = this.getStartingY(neuron);
+
+  this.activeScene[neuron.id].rect = this.canvas.rect(startingX, startingY, 0, 0)
+  .attr({
+    "fill": self.renderingScene[neuron.id].fill,
+    "stroke": self.renderingScene[neuron.id].border,
+    "stroke-width": 3,
+    "opacity": 1
+  })
+  .data("neuronId", neuron.id)
+  .click(function() {
+    self.parent.activate(self.parent.neurons[this.data("neuronId")]);
+  })
+  .hover(function() {
+    this.attr({"cursor": "pointer"});
+  }, function() {
+    this.attr({"cursor": "normal"});
+  })
+  .toBack()
+  .animate({
+    "x": self.getRenderingX(neuron),
+    "y": self.getRenderingY(neuron),
+    "width": self.getRenderingWidth(neuron),
+    "height": self.getRenderingHeight(neuron)
+  }, self.config.animations.add.duration, "linear", function() {  // by here, rect is animated into place
+    // todo: deal with tabindex stuff
+    // self.activeScene[neuron.id].rect[0].tabIndex = 0;
+    callback();
+  });
+}
+
 //---------------------------
 // Map.animateAdd(neurons, callback, iteration)
 // -
@@ -395,121 +429,95 @@ Map.prototype.animateAdd = function(neurons, callback, iteration) {
   //----------
   // STUFF RE: RECTANGLE
   //----------
-  var fill = self.renderingScene[neuron.id].fill || "#fff";
-  var border = self.renderingScene[neuron.id].border || "#000";
-
+  var fill = self.renderingScene[neuron.id].fill;
+  var border = self.renderingScene[neuron.id].border;
   var startingX = self.getStartingX(neuron);
   var startingY = self.getStartingY(neuron);
   
-  // draw the rect
-  self.activeScene[neuron.id].rect = self.canvas.rect(startingX, startingY, 0, 0)   // start with width/height of 0
-    .attr({
-      "fill": fill, 
-      "stroke": border, 
-      "stroke-width": 3,
-      "opacity": 1})
-    .data("neuronId", neuron.id)
-    .click(function() {   
-      self.parent.activate(self.parent.neurons[this.data("neuronId")]);
-    })
-    .hover(function() {
-      this.attr({"cursor": "pointer"});
-    }, function() {
-      this.attr({"cursor": "normal"});
-    })
-    .toBack()
-    .animate({                // animate into position
-      "x": self.getRenderingX(neuron),
-      "y": self.getRenderingY(neuron),
-      "width": self.getRenderingWidth(neuron),
-      "height": self.getRenderingHeight(neuron)
-    }, self.config.animations.add.duration, "linear", function() {      // rect is animated into place
+  self.animateAddRect(neuron, function() {
 
-      // todo: code for dealing with tabIndex stuff per below
-      // self.activeScene[neuron.id].rect[0].tabIndex = 0;
+    //----------
+    // STUFF RE: TITLE
+    //----------
 
-      //----------
-      // STUFF RE: TITLE
-      //----------
+    var x = self.getRenderingX(neuron) + (self.getRenderingWidth(neuron) / 2);     // horizontal centre of current rect
+    var rectTopY = self.getRenderingY(neuron);       // vertical top of current rect
+    var lineHeight = self.renderingScene[neuron.id].lineHeight;
+    self.activeScene[neuron.id].title = [];                       // empty array for title elements
+    // add a text element for each part of title
+    async.eachOf(neuron.title, function(row, index, nextRow) {
+      // following is adding height of rows, 0.5 and half of the lineheight 
+      var y = rectTopY + self.scaleY(index * lineHeight + 0.5 + (lineHeight / 2));
+      if (typeof row === "string") {  // just render text as usual
+        var titleRow = self.canvas.text(x, y, row)
+          .attr({
+            "font-size": self.scaleY(lineHeight) / 2,
+            "opacity": 0
+          })
+          .data("neuronId", neuron.id)
+          .click(function() {   
+            self.parent.activate(self.parent.neurons[this.data("neuronId")]);
+          })
+          .hover(function() {
+            this.attr({"cursor": "pointer"});
+          }, function() {
+            this.attr({"cursor": "normal"});
+          })
+          .animate({
+            "opacity": 1
+          }, self.config.animations.add.duration, "linear");
+        self.activeScene[neuron.id].title.push({
+          "text": titleRow
+        });
+      } else if (typeof row === "object") {
+        for (var key in row) {
+          if (key == "latex") {
+            var fontSize = self.scaleY(lineHeight) / 2;
+            var latexElem = document.createElement("DIV");      // element where latex is rendered
+            var latexText = katex.renderToString(row[key]);     // text string
 
-      var x = self.getRenderingX(neuron) + (self.getRenderingWidth(neuron) / 2);     // horizontal centre of current rect
-      var rectTopY = self.getRenderingY(neuron);       // vertical top of current rect
-      var lineHeight = self.renderingScene[neuron.id].lineHeight;
-      self.activeScene[neuron.id].title = [];                       // empty array for title elements
-      // add a text element for each part of title
-      async.eachOf(neuron.title, function(row, index, nextRow) {
-        // following is adding height of rows, 0.5 and half of the lineheight 
-        var y = rectTopY + self.scaleY(index * lineHeight + 0.5 + (lineHeight / 2));
-        if (typeof row === "string") {  // just render text as usual
-          var titleRow = self.canvas.text(x, y, row)
-            .attr({
-              "font-size": self.scaleY(lineHeight) / 2,
+            latexElem.style.opacity = "0";
+            latexElem.innerHTML = latexText;
+            latexElem.style.cursor = "pointer";
+
+            var latexRow = self.canvas.text(x, y, "").attr({
+              "font-size": fontSize,
               "opacity": 0
-            })
-            .data("neuronId", neuron.id)
-            .click(function() {   
-              self.parent.activate(self.parent.neurons[this.data("neuronId")]);
-            })
-            .hover(function() {
-              this.attr({"cursor": "pointer"});
-            }, function() {
-              this.attr({"cursor": "normal"});
-            })
-            .animate({
+            });          // raphael element          
+
+            self.activeScene[neuron.id].title.push({
+              "text": latexRow,
+              "div": latexElem
+            });
+
+            document.body.appendChild(latexElem);
+            latexElem.addEventListener('click', function() {
+              self.parent.activate(self.parent.neurons[neuron.id]);
+            });
+
+            latexElem.style.fontSize = fontSize + "px";
+            latexElem.style.position = "absolute";
+
+            setTimeout(function() { // create a dummy raphael element and use it to animate this one in
+              latexElem.style.top = y - latexElem.offsetHeight / 2 + "px";
+              latexElem.style.left = x - latexElem.offsetWidth / 2 + "px";
+            }, 100);    // this is in a setTimeout so that offsetHeight and Width are set in time
+
+            eve.on('raphael.anim.frame.' + latexRow.id, onAnimate = function(index) {
+              latexElem.style.opacity = this.attrs.opacity;
+            });
+
+            latexRow.animate({
               "opacity": 1
-            }, self.config.animations.add.duration, "linear");
-          self.activeScene[neuron.id].title.push({
-            "text": titleRow
-          });
-        } else if (typeof row === "object") {
-          for (var key in row) {
-            if (key == "latex") {
-              var fontSize = self.scaleY(lineHeight) / 2;
-              var latexElem = document.createElement("DIV");      // element where latex is rendered
-              var latexText = katex.renderToString(row[key]);     // text string
-
-              latexElem.style.opacity = "0";
-              latexElem.innerHTML = latexText;
-              latexElem.style.cursor = "pointer";
-
-              var latexRow = self.canvas.text(x, y, "").attr({
-                "font-size": fontSize,
-                "opacity": 0
-              });          // raphael element          
-
-              self.activeScene[neuron.id].title.push({
-                "text": latexRow,
-                "div": latexElem
-              });
-
-              document.body.appendChild(latexElem);
-              latexElem.addEventListener('click', function() {
-                self.parent.activate(self.parent.neurons[neuron.id]);
-              });
-
-              latexElem.style.fontSize = fontSize + "px";
-              latexElem.style.position = "absolute";
-
-              setTimeout(function() { // create a dummy raphael element and use it to animate this one in
-                latexElem.style.top = y - latexElem.offsetHeight / 2 + "px";
-                latexElem.style.left = x - latexElem.offsetWidth / 2 + "px";
-              }, 100);    // this is in a setTimeout so that offsetHeight and Width are set in time
-
-              eve.on('raphael.anim.frame.' + latexRow.id, onAnimate = function(index) {
-                latexElem.style.opacity = this.attrs.opacity;
-              });
-
-              latexRow.animate({
-                "opacity": 1
-              }, self.config.animations.add.duration, "linear", function() {
-                eve.unbind('raphael.anim.frame.' + latexRow.id, onAnimate);
-              });
-            } // end if key === latex
-          } 
-        } // end if row === object
-      });      
-      if (iteration + 1 == neurons.length) callback();  // rect is added, so call callback
-    });
+            }, self.config.animations.add.duration, "linear", function() {
+              eve.unbind('raphael.anim.frame.' + latexRow.id, onAnimate);
+            });
+          } // end if key === latex
+        } 
+      } // end if row === object
+    });      
+    if (iteration + 1 == neurons.length) callback();  // rect is added, so call callback
+  });
 
   //----------
   // STUFF RE: CONNECTION LINE
