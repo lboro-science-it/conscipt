@@ -381,6 +381,20 @@ Map.prototype.getStartingY = function(neuron) {
   return this.getRenderingY(neuron) + this.getRenderingHeight(neuron) / 2;
 };
 
+// function to register click handler for a raphael object to activate a neuron + set cursor
+Map.prototype.raphOnClickActivate = function(raphaelObj, neuron) {
+  var self = this;
+  raphaelObj.data("neuronId", neuron.id)
+  .click(function() {
+    self.parent.activate(self.parent.neurons[this.data("neuronId")]);
+  })
+  .hover(function() {
+    this.attr({"cursor": "pointer"});
+  }, function() {
+    this.attr({"cursor": "normal"});
+  });
+};
+
 Map.prototype.animateAddRect = function(neuron, callback) {
   var self = this;
   var startingX = this.getStartingX(neuron);
@@ -393,15 +407,6 @@ Map.prototype.animateAddRect = function(neuron, callback) {
     "stroke-width": 3,
     "opacity": 1
   })
-  .data("neuronId", neuron.id)
-  .click(function() {
-    self.parent.activate(self.parent.neurons[this.data("neuronId")]);
-  })
-  .hover(function() {
-    this.attr({"cursor": "pointer"});
-  }, function() {
-    this.attr({"cursor": "normal"});
-  })
   .toBack()
   .animate({
     "x": self.getRenderingX(neuron),
@@ -409,6 +414,7 @@ Map.prototype.animateAddRect = function(neuron, callback) {
     "width": self.getRenderingWidth(neuron),
     "height": self.getRenderingHeight(neuron)
   }, self.config.animations.add.duration, "linear", function() {  // by here, rect is animated into place
+    self.raphOnClickActivate(this, neuron);
     // todo: deal with tabindex stuff
     // self.activeScene[neuron.id].rect[0].tabIndex = 0;
     callback();
@@ -432,18 +438,11 @@ Map.prototype.animateAddTitle = function(neuron) {
         "font-size": fontSize,
         "opacity": 0
       })
-      .data("neuronId", neuron.id)
-      .click(function() {
-        self.parent.activate(self.parent.neurons[this.data("neuronId")]);
-      })
-      .hover(function() {
-        this.attr({"cursor": "pointer"})
-      }, function() {
-        this.attr({"cursor": "normal"})
-      })
       .animate({
         "opacity": 1
-      }, self.config.animations.add.duration, "linear");
+      }, self.config.animations.add.duration, "linear", function() {
+        self.raphOnClickActivate(this, neuron);
+      });
 
       self.activeScene[neuron.id].title.push({
         "text": titleRow
@@ -512,7 +511,6 @@ Map.prototype.animateAdd = function(neurons, callback, iteration) {
   self.animateAddRect(neuron, function() {            // animate the rect in
     self.animateAddTitle(neuron);                     // once rect is in, animate the title in
     // todo: add connections
-
     if (iteration + 1 == neurons.length) callback();  // once final rect is added, callback
   });
 
