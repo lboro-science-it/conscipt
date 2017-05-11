@@ -48,11 +48,19 @@ function Map(parent, mapDivId, containerDivId) {
 };
 
 Map.prototype.getActiveX = function(neuron) {
-  return this.scaleX(this.ax(neuron) - this.aw(neuron) / 2);
+  return this.scaleX(this.ax(neuron) - this.aw(neuron) / 2) + this.offsetX;
 };
 
 Map.prototype.getActiveY = function(neuron) {
-  return this.scaleY(this.ay(neuron) - this.ah(neuron) / 2);
+  return this.scaleY(this.ay(neuron) - this.ah(neuron) / 2) + this.offsetY;
+};
+
+Map.prototype.getActiveWidth = function(neuron) {
+  return this.scaleX(this.aw(neuron));
+};
+
+Map.prototype.getActiveHeight = function(neuron) {
+  return this.scaleY(this.ah(neuron));
 };
 
 // convert a neuron's percentage co-ordinates in a rendering scene
@@ -121,15 +129,19 @@ Map.prototype.scaleY = function(y) {
 };
 
 // returns either the centre of the parent (if a neuron has a parent) or the centre of own final position
-Map.prototype.getStartingX = function(neuron) {
+Map.prototype.getOriginX = function(neuron, scene) {
   var neuron = neuron.parent || neuron;
-  return this.getRenderingX(neuron) + this.getRenderingWidth(neuron) / 2;
+  var scene = scene || "rendering";
+  if (scene == "rendering") return this.getRenderingX(neuron) + this.getRenderingWidth(neuron) / 2;
+  else return this.getActiveX(neuron) + this.getActiveWidth(neuron) / 2;
 };
 
 // return either centre of parent, or centre of own position if no parent
-Map.prototype.getStartingY = function(neuron) {
+Map.prototype.getOriginY = function(neuron, scene) {
   var neuron = neuron.parent || neuron;
-  return this.getRenderingY(neuron) + this.getRenderingHeight(neuron) / 2;
+  var scene = scene || "rendering";
+  if (scene == "rendering") return this.getRenderingY(neuron) + this.getRenderingHeight(neuron) / 2;
+  else return this.getActiveY(neuron) + this.getActiveHeight(neuron) / 2;
 };
 
 // register click handler for a raphael object to activate a neuron + set cursor
@@ -148,8 +160,8 @@ Map.prototype.raphOnClickActivate = function(raphaelObj, neuron) {
 
 Map.prototype.animateAddRect = function(neuron, callback) {
   var self = this;
-  var startingX = this.getStartingX(neuron);
-  var startingY = this.getStartingY(neuron);
+  var startingX = this.getOriginX(neuron);
+  var startingY = this.getOriginY(neuron);
 
   this.activeScene[neuron.id].rect = this.canvas.rect(startingX, startingY, 0, 0)
   .attr({
@@ -201,7 +213,7 @@ Map.prototype.animateAddTitle = function(neuron) {
     };
 
     if (type == "latex") {
-      var latexElem = dom.addChildDiv({
+      var latexElem = dom.addChildDiv({           // create div for latex to be rendered into with same style as other text
         "id": neuron.id + "-title-" + index,
         "style": {
           "cursor": "pointer",
@@ -212,7 +224,6 @@ Map.prototype.animateAddTitle = function(neuron) {
       });
 
       latexElem.innerHTML = katex.renderToString(customContent);
-
       latexElem.addEventListener('click', function() {
         self.parent.activate(self.parent.neurons[neuron.id]);
       });
@@ -367,6 +378,56 @@ Map.prototype.animateMove = function(animations, offsetX, offsetY, callback, ite
   }
 };
 
+// iterates the rows in a neuron's title object
+Map.prototype.animateRemoveTitle = function(neuron, callback) {
+  var self = this;
+  var neuronSceneObj = this.activeScene[neuron.id];
+  async.eachOf(neuronSceneObj.title, function(row, index, nextRow) {      // iterate title rows
+    var isLatex = (typeof row.div !== 'undefined');               // if row has a div it's latex so must be animated out along with raphael elem
+    if (isLatex) {
+      eve.on('raphael.anim.frame.' + row.text.id, onAnimate = function(i) {
+        row.div.opacity = this.attrs.opacity;                     // the raphael dummy elem will fade its opacity, div matches
+      });
+    }
+    row.text.animate({                                            // row.text = raphael elem of this title row
+      "opacity": 0
+    }, self.config.animations.remove.duration, "linear", function() {
+      if (isLatex) {
+        eve.unbind('raphael.anim.frame.' + row.text.id, onAnimate);
+        row.div.parentNode.removeChild(row.div);
+      }
+      this.remove();
+      delete neuronSceneObj.title[index];
+      if (index == neuronSceneObj.title.length - 1) nextRow();            // only move to callback once final animation is complete
+    });
+    if (index < neuronSceneObj.title.length - 1) nextRow();               // go directly to next row until final row
+  }, function() {
+    callback();
+  });
+};
+
+Map.prototype.animateRemoveRect = function(neuron, callback) {
+  var self = this;
+  var neuronSceneObj = this.activeScene[neuron.id];
+  
+  var x = self.getOriginX(neuron, "active");      // we are gonna remove it either to its parent's co-ords, or its own co-ords if it doesn't have a parent
+  var y = self.getOriginY(neuron, "active");
+
+  // possibly put line stuff here
+
+  neuronSceneObj.rect.animate({
+    "x": x,
+    "y": y,
+    "width": 0,
+    "height": 0,
+    "opacity": 0
+  }, self.config.animations.remove.duration, "linear", function() {
+    this.remove();
+    delete self.activeScene[neuron.id];
+    callback();
+  });
+};
+
 //------------------------
 // Map.animateRemove(neurons, callback, iteration)
 // -
@@ -378,62 +439,13 @@ Map.prototype.animateRemove = function(neurons, callback, iteration) {
   var neuron = self.neurons[neurons[iteration]];     // neuron object of neuron to delete
   var neuronToDelete = self.activeScene[neuron.id]; // neuron object in scene
 
-  //----------
-  // STUFF RE: TITLE
-  //----------
-  async.eachOf(neuronToDelete.title, function(row, index, nextRow) {
-    if (typeof row.div !== 'undefined') {   // if there is a div we need to link its animation to the raphael element
-      eve.on('raphael.anim.frame.' + row.text.id, onAnimate = function(i) {
-        row.div.opacity = this.attrs.opacity;
-      });
-    }
-    row.text.animate({
-      "opacity": 0
-    }, self.config.animations.remove.duration, "linear", function() {
-      if (typeof row.div !== 'undefined') {
-        eve.unbind('raphael.anim.frame.' + row.text.id, onAnimate);
-        row.div.parentNode.removeChild(row.div);
-      }
-      this.remove();
-      delete neuronToDelete.title[index];
-      if (index == neuronToDelete.title.length - 1) nextRow();    // wait until the last elem finishes animating before calling callback
-    });
-    if (index < neuronToDelete.title.length - 1) nextRow();   // only iterate async until the last elem
-  },
-  function() {  // all title rows (text) have been removed
-    //----------
-    // STUFF RE: RECT
-    //----------
-    var x;
-    var y;
-    if (n.hasParent(neuron)) {  // if neuron has a parent, get the parent's co-ords to animate to there
-      x = self.activeScene[neuron.parent.id].rect.attrs.x + self.activeScene[neuron.parent.id].rect.attrs.width / 2;
-      y = self.activeScene[neuron.parent.id].rect.attrs.y + self.activeScene[neuron.parent.id].rect.attrs.height / 2;
-    } else {                                          // simply animate the neuron to its own centre
-      x = self.activeScene[neuron.id].rect.attrs.x + self.activeScene[neuron.id].rect.attrs.width / 2;
-      y = self.activeScene[neuron.id].rect.attrs.y + self.activeScene[neuron.id].rect.attrs.height / 2;
-    }
-    // remove connecting lines
-    // todo: animate these out
-    if (n.containsNeuron(self.connections, neuron)) {
-      self.connections[neuron.id].remove();
-      delete self.connections[neuron.id];
-    }
-    neuronToDelete.rect.animate({
-      "x": x,
-      "y": y,
-      "width": 0,
-      "height": 0,
-      "opacity": 0
-    }, self.config.animations.remove.duration, "linear", function() {
-      this.remove();                                      // removes the rect instance
-      delete self.activeScene[neuron.id];
-      if (iteration == neurons.length - 1) callback();    // all animations are complete
+  this.animateRemoveTitle(neuron, function() {
+    self.animateRemoveRect(neuron, function() {
+      if (iteration == neurons.length - 1) callback();  // callback once the last neuron rect remove has been animated
     });
   });
 
-  // if there is another neuron to animateRemove
-  if (iteration + 1 < neurons.length) {
+  if (iteration + 1 < neurons.length) {                 // call next animateRemove for next neuron that needs removing
     setTimeout(function() {
       self.animateRemove(neurons, callback, iteration + 1);
     }, self.config.animations.remove.interval);
@@ -550,7 +562,6 @@ Map.prototype.render = function(neuron, callback) {
         var sceneOffsetX = self.scaleX(self.ax(self.renderingNeuron) - self.rx(self.renderingNeuron));
         var sceneOffsetY = self.scaleY(self.ay(self.renderingNeuron) - self.ry(self.renderingNeuron));
 
-        // anchor part is broken
         // offset = difference between new active node's position in the current scene and its position in the new scene (centre co-ordinates)
 
         async.each(self.activeScene, function(neuron, nextNeuron) {
