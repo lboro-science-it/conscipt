@@ -329,6 +329,8 @@ Map.prototype.animateAdd = function(neurons, callback, iteration) {
     if (iteration + 1 == neurons.length && typeof callback === 'function') callback();  // once final rect is added, callback
   });
 
+  self.animateAddConnector(neuron);
+
   if (iteration + 1 < neurons.length) {               // still neurons to animate, move to the next iteration
     setTimeout(function() {
       self.animateAdd(neurons, callback, iteration + 1);
@@ -354,6 +356,34 @@ Map.prototype.animateAdd = function(neurons, callback, iteration) {
 */
 };
 
+Map.prototype.animateAddConnector = function(neuron, callback) {
+  if (n.hasParent(neuron)) {  // only add connector if neuron has a parent
+    console.log("here we are animating adding connector");
+    var parent = neuron.parent;
+
+    var border = this.parent.config.styles[neuron.style]["border-color"] || "#000";
+    var borderWidth = this.parent.config.styles.default["border-width"] || 3;
+    console.log(this.parent.config.styles[neuron.style]["border-color"]);
+    
+    var fromX = this.scaleX(this.rx(parent)) + this.offsetX;    // from centre point of parent rect in rendering scene - parent will be in position by now
+    var fromY = this.scaleY(this.ry(parent)) + this.offsetY;
+    var toX = this.getRenderingX(neuron) + this.getRenderingWidth(neuron) / 2;    // to centre of own rect in rendering scene
+    var toY = this.getRenderingY(neuron) + this.getRenderingHeight(neuron) / 2;
+
+    console.log("fromX: " + fromX + ", fromY: " + fromY + ", toX: " + toX + ", toY: " + toY);
+
+    this.connections[neuron.id] = this.canvas.path("M" + fromX + " " + fromY)
+    .attr({
+      "stroke": border,
+      "stroke-width": borderWidth
+    })
+    .toBack();
+    this.connections[neuron.id].animate({path: "M" + fromX + " " + fromY + "L" + toX + ", " + toY}, 500);
+  }
+
+  if (typeof callback === 'function') callback();
+};
+
 //--------------------
 // Map.animateAddRect(neuron) 
 // -
@@ -368,7 +398,7 @@ Map.prototype.animateAddRect = function(neuron, callback) {
   .attr({
     "fill": self.renderingScene[neuron.id].fill,
     "stroke": self.renderingScene[neuron.id].border,
-    "stroke-width": self.parent.config.styles.default["border-width"],
+    "stroke-width": self.parent.config.styles.default["border-width"],      // todo; make this settable via styles..
     "opacity": 1
   })
   .toBack()
@@ -465,35 +495,34 @@ Map.prototype.animateMove = function(animations, offsetX, offsetY, callback, ite
   var self = this;
   if (typeof iteration === 'undefined') var iteration = 0;
 
-  var neuronAnimation = animations[iteration];              // animation object, containing co-ords etc
-  var neuron = this.activeScene[neuronAnimation.id];        // actual neuron object that is being dealt with
-
-  this.updateActiveSceneNeuronProperties(neuronAnimation.id);         // update co-ords of neuron in activeScene to match those in renderingScene
-
-  if (n.containsNeuron(this.connections, neuron)) {
-    // animate moving the connections here
-  }
+  var neuronAnimation = animations[iteration];                  // animation object, containing co-ords etc
+  var neuron = this.activeScene[neuronAnimation.id];            // actual neuron object that is being dealt with
+  this.updateActiveSceneNeuronProperties(neuronAnimation.id);   // update co-ords of neuron in activeScene to match those in renderingScene
 
   //----------
   // TITLES
   //----------
   async.eachOf(neuron.title, function(row, index, nextRow) {
     var fontSize = row.text.attrs["font-size"]
-    if (neuron.role == "zii") {      // hide ZII neurons
+    if (neuron.role == "zii") {      // hide ZII neuron titles
       if (typeof row.div !== 'undefined') {
-        eve.on('raphael.anim.frame.' + row.text.id, onAnimate = function(i) {
+        eve.on('raphael.anim.frame.' + row.text.id, onAnimate = function(i) {     // animating latex div moves
           row.div.style.opacity = this.attrs.opacity;
-          row.div.style.left = (this.attrs.x - row.div.offsetWidth / 2) + "px";
-          row.div.style.top = (this.attrs.y - row.div.offsetHeight / 2) + "px";
+          row.div.style.left = (this.attrs.x - row.div.offsetWidth / 2) + "px";   // subtract half width to get left co-ord
+          row.div.style.top = (this.attrs.y - row.div.offsetHeight / 2) + "px";   // subtract half height to get top co-ord
         });
       }
-      row.text.animate({
+
+      row.text.animate({                                                          // animating moving raphael elements
         "opacity": 0,
-        "x": neuronAnimation.x + offsetX + (neuronAnimation.width / 2),
-        "y": neuronAnimation.y + offsetY + (neuronAnimation.height / 2)
+        "x": neuronAnimation.x + offsetX + (neuronAnimation.width / 2),           // add half width to get centre co-ord
+        "y": neuronAnimation.y + offsetY + (neuronAnimation.height / 2)           // add half height to get centre co-ord
       }, self.parent.config.animations.move.duration, "linear", function() {
         if (typeof row.div !== 'undefined') eve.unbind('raphael.anim.frame.' + row.text.id, onAnimate);
       });
+
+      // todo: set up here so that on hover the title shows
+
     } else {    // active, ancestor or child neurons get their titles animated to new position of rect
       if (typeof row.div !== 'undefined') {
         eve.on('raphael.anim.frame.' + row.text.id, onAnimate = function(i) {
@@ -517,7 +546,7 @@ Map.prototype.animateMove = function(animations, offsetX, offsetY, callback, ite
         "opacity": 1
       }, self.parent.config.animations.move.duration, "linear", function() {
         if (typeof row.div !== 'undefined') eve.unbind('raphael.anim.frame.' + row.text.id, onAnimate);
-      })
+      });
     }
 
     nextRow();
@@ -535,14 +564,6 @@ Map.prototype.animateMove = function(animations, offsetX, offsetY, callback, ite
   if (iteration + 1 < animations.length) {
     this.animateMove(animations, offsetX, offsetY, callback, iteration + 1);
   }
-};
-
-Map.prototype.animateMoveRect = function(neuron, callback) {
-
-};
-
-Map.prototype.animateMoveTitle = function(neuron, callback) {
-
 };
 
 //------------------------
@@ -831,7 +852,7 @@ Map.prototype.render = function(neuron, callback) {
           if (n.containsNeuron(self.renderingScene, neuron)) {   // if neuron exists in activeScene and renderingScene, it needs to be moved
             animations.anchor.push({
               id: neuron.id,
-              x: self.getRenderingX(neuron) + sceneOffsetX,
+              x: self.getRenderingX(neuron) + sceneOffsetX ,
               y: self.getRenderingY(neuron) + sceneOffsetY,
               width: self.getRenderingWidth(neuron),
               height: self.getRenderingHeight(neuron)
