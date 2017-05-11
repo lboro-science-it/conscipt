@@ -150,6 +150,8 @@ neuron.calculateChildAngles = function(neuron) {
   }
 };
 
+
+
 //------------------------------
 // neuron.calculateScene(neuron, config, callback)
 // -
@@ -163,6 +165,10 @@ neuron.calculateScene = function(neuron, config, callback) {
   this.addAncestorsToScene(neuron.scene, neuron, config, function() { // add ancestor neurons with ancestor config
     callback();     // callback from when calculateScene was called
   });
+};
+
+neuron.containsNeuron = function(collection, neuron) {
+  return typeof collection[neuron.id] !== 'undefined';
 };
 
 //------------------------------
@@ -201,6 +207,14 @@ neuron.getParentAngle = function(neuron) {
     }
   }
   return parentAngle;
+};
+
+neuron.hasChildren = function(neuron) {
+  return typeof neuron.children !== 'undefined';
+}
+
+neuron.hasParent = function(neuron) {
+  return typeof neuron.parent !== 'undefined';
 };
 
 //--------------------------------
