@@ -62,6 +62,7 @@ module.exports = {
     "styles": {
       "default": {
         "border-color": "#000000",
+        "border-width": 3,
         "fill": "#fffff0"
       }
     },
