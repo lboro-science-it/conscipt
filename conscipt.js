@@ -497,11 +497,28 @@ Map.prototype.animateMove = function(animations, offsetX, offsetY, callback, ite
   var neuron = this.activeScene[neuronAnimation.id];            // actual neuron object that is being dealt with
   this.updateActiveSceneNeuronProperties(neuronAnimation.id);   // update co-ords of neuron in activeScene to match those in renderingScene
 
-  //----------
-  // TITLES
-  //----------
-  async.eachOf(neuron.title, function(row, index, nextRow) {
-    var fontSize = row.text.attrs["font-size"]
+  this.animateMoveTitle(neuronAnimation, offsetX, offsetY);
+
+  neuron.rect.animate({
+    "x": neuronAnimation.x + offsetX,
+    "y": neuronAnimation.y + offsetY,
+    "width": neuronAnimation.width, 
+    "height": neuronAnimation.height
+  }, self.parent.config.animations.move.duration, "linear", function() {
+    if (iteration + 1 == animations.length && typeof callback === 'function') callback();  // callback only gets called when the last one is done
+  });
+
+  if (iteration + 1 < animations.length) {
+    this.animateMove(animations, offsetX, offsetY, callback, iteration + 1);
+  }
+};
+
+Map.prototype.animateMoveTitle = function(neuronAnimation, offsetX, offsetY) {
+  console.log("ok");
+  var self = this;
+  var neuron = this.activeScene[neuronAnimation.id];          // object through which to access raphael text elems etc
+
+  async.eachOf(neuron.title, function(row, index, nextRow) {  // iterate the title array which contains raphael text elem for each row of title
     if (neuron.role == "zii") {      // hide ZII neuron titles
       if (typeof row.div !== 'undefined') {
         eve.on('raphael.anim.frame.' + row.text.id, onAnimate = function(i) {     // animating latex div moves
@@ -518,11 +535,9 @@ Map.prototype.animateMove = function(animations, offsetX, offsetY, callback, ite
       }, self.parent.config.animations.move.duration, "linear", function() {
         if (typeof row.div !== 'undefined') eve.unbind('raphael.anim.frame.' + row.text.id, onAnimate);
       });
-
       // todo: set up here so that on hover the title shows
-
     } else {    // active, ancestor or child neurons get their titles animated to new position of rect
-      if (typeof row.div !== 'undefined') {
+      if (typeof row.div !== 'undefined') {           // if row has a div, it's a LaTeX div which needs animating with dummy raphael elem
         eve.on('raphael.anim.frame.' + row.text.id, onAnimate = function(i) {
           row.div.style.opacity = this.attrs.opacity;
           row.div.style.left = (this.attrs.x - row.div.offsetWidth / 2) + "px";
@@ -546,22 +561,8 @@ Map.prototype.animateMove = function(animations, offsetX, offsetY, callback, ite
         if (typeof row.div !== 'undefined') eve.unbind('raphael.anim.frame.' + row.text.id, onAnimate);
       });
     }
-
     nextRow();
   });
-
-  neuron.rect.animate({
-    "x": neuronAnimation.x + offsetX,
-    "y": neuronAnimation.y + offsetY,
-    "width": neuronAnimation.width, 
-    "height": neuronAnimation.height
-  }, self.parent.config.animations.move.duration, "linear", function() {
-    if (iteration + 1 == animations.length && typeof callback === 'function') callback();  // callback only gets called when the last one is done
-  });
-
-  if (iteration + 1 < animations.length) {
-    this.animateMove(animations, offsetX, offsetY, callback, iteration + 1);
-  }
 };
 
 //------------------------
@@ -598,16 +599,16 @@ Map.prototype.animateRemoveConnector = function(neuron, callback) {
 
     var total = 0;
 
-    connector.attr({"width": 1});       // we will use the unused width attr to calculate the stroke-dasharray when we animate it
+    connector.attr({"width": 0});       // we will use the unused width attr to calculate the stroke-dasharray when we animate it
 
     eve.on('raphael.anim.frame.' + connector.id, onAnimate = function(i) {
-      connector[0].style["stroke-dashoffset"] = (1 - connector.attrs.width) * connector.getTotalLength() + "px";       // the raphael dummy elem will fade its opacity, div matches
+      connector[0].style["stroke-dashoffset"] = connector.attrs.width * connector.getTotalLength() + "px";       // the raphael dummy elem will fade its opacity, div matches
       console.log(connector[0].style["stroke-dashoffset"]);
       // todo: match this to some property that we are actually animating
     });
 
     this.activeScene[neuron.id].connector.animate({
-      "width": 0           // an invented property used to calculate the pathlength
+      "width": 1           // an invented property used to calculate the pathlength
       // todo: find some property to actually animate
     }, self.parent.config.animations.remove.duration, "linear", function() {
       eve.unbind('raphael.anim.frame.' + connector.id, onAnimate);
