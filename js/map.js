@@ -248,19 +248,62 @@ Map.prototype.animateMove = function(animations, offsetX, offsetY, callback, ite
   this.updateActiveSceneNeuronProperties(neuronAnimation.id);   // update co-ords of neuron in activeScene to match those in renderingScene
 
   this.animateMoveTitle(neuronAnimation, offsetX, offsetY);
+  if (typeof this.activeScene[neuron.parent] !== 'undefined') { // if neuron parent is in scene we need to animate connector
+    var parentAnimation = getAnimationByNeuronId(animations, neuron.parent);  // we need parent animation in order to do this.
+    this.animateMoveConnector(neuronAnimation, parentAnimation, offsetX, offsetY);
+  }
+  this.animateMoveRect(neuronAnimation, offsetX, offsetY, function() {
+    if (iteration + 1 == animations.length && typeof callback === 'function') callback(); // callback only called after final rect is animated
+  });
 
+  if (iteration + 1 < animations.length) {                      // animate next if there are still iteratons to go
+    this.animateMove(animations, offsetX, offsetY, callback, iteration + 1);
+  }
+};
+
+//-----------------------------
+// Map.animateMoveConnector(neuronAnimation, offsetX, offsetY)
+// -
+// Animate the move of the connector. neuronAnimation contains the co-ords the connector's neuron will end up at. Also need to consider where the parent will end up.
+//-----------------------------
+Map.prototype.animateMoveConnector = function(neuronAnimation, parentAnimation, offsetX, offsetY) {
+  var self = this;
+  var neuron = this.activeScene[neuronAnimation.id];
+  var hasConnector = (typeof neuron.connector !== 'undefined');
+
+  if (hasConnector) {   // only try and animate connector if it definitely exists
+    // calculating scale = current path length vs length of diff between parent centre and neuron centre
+
+
+    // there are four separate transform cases:
+    // 1. parent is above and left of neuron
+    // connector top left co-ord == parent centre
+    // connector bottom right == neuron centre = top left + w + h
+
+    // 2. parent is below and left of neuron
+    // connector bottom left co-ord == parent centre (or connector top left + connector height)
+    // connector top right co-ord == neuron centre = top left + w
+
+    // 3. parent is above and right of neuron
+
+    // 4. parent is below and right of neuron
+
+    // if parent is to the left of neuron, we can just transform 
+
+  }
+};
+
+Map.prototype.animateMoveRect = function(neuronAnimation, offsetX, offsetY, callback) {
+  var self = this;
+  var neuron = this.activeScene[neuronAnimation.id];          // animation object contains destination co-ords etc
   neuron.rect.animate({
     "x": neuronAnimation.x + offsetX,
     "y": neuronAnimation.y + offsetY,
     "width": neuronAnimation.width, 
     "height": neuronAnimation.height
   }, self.parent.config.animations.move.duration, "linear", function() {
-    if (iteration + 1 == animations.length && typeof callback === 'function') callback();  // callback only gets called when the last one is done
+    if (typeof callback === 'function') callback();
   });
-
-  if (iteration + 1 < animations.length) {
-    this.animateMove(animations, offsetX, offsetY, callback, iteration + 1);
-  }
 };
 
 Map.prototype.animateMoveTitle = function(neuronAnimation, offsetX, offsetY) {
@@ -344,13 +387,10 @@ Map.prototype.animateRemoveConnector = function(neuron, callback) {
 
     eve.on('raphael.anim.frame.' + connector.id, onAnimate = function(i) {
       connector[0].style["stroke-dashoffset"] = connector.attrs.width * connector.getTotalLength() + "px";       // the raphael dummy elem will fade its opacity, div matches
-      console.log(connector[0].style["stroke-dashoffset"]);
-      // todo: match this to some property that we are actually animating
     });
 
     this.activeScene[neuron.id].connector.animate({
-      "width": 1           // an invented property used to calculate the pathlength
-      // todo: find some property to actually animate
+      "width": 1           // not actually width, we are just making raphael animate this and using to calculate pathlength to 'animate out' the connector
     }, self.parent.config.animations.remove.duration, "linear", function() {
       eve.unbind('raphael.anim.frame.' + connector.id, onAnimate);
       this.remove();
@@ -716,4 +756,12 @@ Map.prototype.updateActiveSceneNeuronProperties = function(neuronId) {
   this.activeScene[neuronId].width = this.renderingScene[neuronId].width;
   this.activeScene[neuronId].height = this.renderingScene[neuronId].height;
   this.activeScene[neuronId].role = this.renderingScene[neuronId].role;
+};
+
+// as implied, iterates through the array of animations looking for the one where id matches id
+function getAnimationByNeuronId(animations, id) {
+  for (var i = 0; i < animations.length; i++) {
+    if (animations[i].id == id) return animations[i];
+  }
+  return false;
 };
