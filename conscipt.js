@@ -514,53 +514,44 @@ Map.prototype.animateMove = function(animations, offsetX, offsetY, callback, ite
 };
 
 Map.prototype.animateMoveTitle = function(neuronAnimation, offsetX, offsetY) {
-  console.log("ok");
   var self = this;
-  var neuron = this.activeScene[neuronAnimation.id];          // object through which to access raphael text elems etc
+  var neuron = this.activeScene[neuronAnimation.id];              // object through which to access raphael text elems etc
+  var x, y, fontSize, opacity;                                    // these are the only things we need to animate for titles
+  
+  x = neuronAnimation.x + offsetX + (neuronAnimation.width / 2);  // raphael x for text elem is always mid point of rect
 
-  async.eachOf(neuron.title, function(row, index, nextRow) {  // iterate the title array which contains raphael text elem for each row of title
-    if (neuron.role == "zii") {      // hide ZII neuron titles
-      if (typeof row.div !== 'undefined') {
-        eve.on('raphael.anim.frame.' + row.text.id, onAnimate = function(i) {     // animating latex div moves
-          row.div.style.opacity = this.attrs.opacity;
-          row.div.style.left = (this.attrs.x - row.div.offsetWidth / 2) + "px";   // subtract half width to get left co-ord
-          row.div.style.top = (this.attrs.y - row.div.offsetHeight / 2) + "px";   // subtract half height to get top co-ord
-        });
-      }
-
-      row.text.animate({                                                          // animating moving raphael elements
-        "opacity": 0,
-        "x": neuronAnimation.x + offsetX + (neuronAnimation.width / 2),           // add half width to get centre co-ord
-        "y": neuronAnimation.y + offsetY + (neuronAnimation.height / 2)           // add half height to get centre co-ord
-      }, self.parent.config.animations.move.duration, "linear", function() {
-        if (typeof row.div !== 'undefined') eve.unbind('raphael.anim.frame.' + row.text.id, onAnimate);
-      });
-      // todo: set up here so that on hover the title shows
-    } else {    // active, ancestor or child neurons get their titles animated to new position of rect
-      if (typeof row.div !== 'undefined') {           // if row has a div, it's a LaTeX div which needs animating with dummy raphael elem
-        eve.on('raphael.anim.frame.' + row.text.id, onAnimate = function(i) {
-          row.div.style.opacity = this.attrs.opacity;
-          row.div.style.left = (this.attrs.x - row.div.offsetWidth / 2) + "px";
-          row.div.style.top = (this.attrs.y - row.div.offsetHeight / 2) + "px"; 
-          row.div.style.fontSize = this.attrs["font-size"] + "px";
-        });
-      }
-
-      // stuff used for positioning titles that remain visible
-      var x = neuronAnimation.x + (neuronAnimation.width / 2);
-      var rectTopY = neuronAnimation.y;
-      var lineHeight = (neuronAnimation.height / neuron.title.length) - 1;
-      var y = (rectTopY + (index * lineHeight) + 0.5 + (lineHeight / 2));
-
-      row.text.animate({
-        "x": x + offsetX,
-        "y": y + offsetY,
-        "font-size": lineHeight / 2,
-        "opacity": 1
-      }, self.parent.config.animations.move.duration, "linear", function() {
-        if (typeof row.div !== 'undefined') eve.unbind('raphael.anim.frame.' + row.text.id, onAnimate);
+  async.eachOf(neuron.title, function(row, index, nextRow) {      // iterate neuron.title[] - raphael text elem for each row of title
+    var hasLatex = (typeof row.div !== 'undefined');    
+    if (hasLatex) {                                               // latex = HTML elems which need to be animated in sync with dummy raphael elem
+      eve.on('raphael.anim.frame.' + row.text.id, onAnimate = function(i) {
+        row.div.style.fontSize = this.attrs["font-size"] + "px";
+        row.div.style.opacity = this.attrs.opacity;
+        row.div.style.left = (this.attrs.x - row.div.offsetWidth / 2) + "px";   // div positioning account for the fact the raphael elem is centre anchored
+        row.div.style.top = (this.attrs.y - row.div.offsetHeight / 2) + "px";
       });
     }
+
+    if (neuron.role == "zii") {                                   // neurons with role "zii" get hidden
+      opacity = 0;
+      fontSize = 0;
+      y = neuronAnimation.y + offsetY + (neuronAnimation.height / 2);
+      // todo: set up here so that on hover the title shows
+    } else {                                                      // other neuron roles get title animated with rect
+      var lineHeight = (neuronAnimation.height / neuron.title.length) - 1;                  // 1 = padding, as neuron height = its lineHeight * number of title rows + 1
+      y = (neuronAnimation.y + (index * lineHeight) + 0.5 + (lineHeight / 2)) + offsetY;    // y = top of rect + multiple lineHeights + half of padding + middle of line point + offset
+      fontSize = lineHeight / 2;
+      opacity = 1;
+    }
+
+    row.text.animate({
+      "x": x,
+      "y": y,
+      "font-size": fontSize,
+      "opacity": opacity
+    }, self.parent.config.animations.move.duration, "linear", function() {
+      if (typeof row.div !== 'undefined') eve.unbind('raphael.anim.frame.' + row.text.id, onAnimate);
+    });
+
     nextRow();
   });
 };
