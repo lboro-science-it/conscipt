@@ -150,8 +150,6 @@ neuron.calculateChildAngles = function(neuron) {
   }
 };
 
-
-
 //------------------------------
 // neuron.calculateScene(neuron, config, callback)
 // -

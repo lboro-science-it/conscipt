@@ -279,8 +279,6 @@ function Map(parent, mapDivId, containerDivId) {
   this.widthSF = 0, this.heightSF = 0;                  // scaling factor for converting percentage points of scenes to pixels
   this.viewportWidth = 0, this.viewportHeight = 0;      // viewport size + raphael canvas size - not all of which will be drawn to
   this.offsetX = 0, this.offsetY = 0;                   // (viewportWidth - width) / 2; for centring the biggest possible 16:9 space
-
-  this.connections = [];    // obj to store connections (paths) between neurons
   
   this.calculateSize(this.parent.div.id);               // sets all sizes, offsets, based on parent div size
   this.div = dom.addChildDiv({"id": mapDivId,"parent":containerDivId});
@@ -358,27 +356,27 @@ Map.prototype.animateAdd = function(neurons, callback, iteration) {
 
 Map.prototype.animateAddConnector = function(neuron, callback) {
   if (n.hasParent(neuron)) {  // only add connector if neuron has a parent
-    console.log("here we are animating adding connector");
     var parent = neuron.parent;
 
     var border = this.parent.config.styles[neuron.style]["border-color"] || "#000";
     var borderWidth = this.parent.config.styles.default["border-width"] || 3;
-    console.log(this.parent.config.styles[neuron.style]["border-color"]);
     
     var fromX = this.scaleX(this.rx(parent)) + this.offsetX;    // from centre point of parent rect in rendering scene - parent will be in position by now
     var fromY = this.scaleY(this.ry(parent)) + this.offsetY;
     var toX = this.getRenderingX(neuron) + this.getRenderingWidth(neuron) / 2;    // to centre of own rect in rendering scene
     var toY = this.getRenderingY(neuron) + this.getRenderingHeight(neuron) / 2;
 
-    console.log("fromX: " + fromX + ", fromY: " + fromY + ", toX: " + toX + ", toY: " + toY);
-
-    this.connections[neuron.id] = this.canvas.path("M" + fromX + " " + fromY)
+    this.activeScene[neuron.id].connector = this.canvas.path("M" + fromX + " " + fromY)
     .attr({
       "stroke": border,
-      "stroke-width": borderWidth
+      "stroke-width": borderWidth,
+      "pathlength": 0
     })
     .toBack();
-    this.connections[neuron.id].animate({path: "M" + fromX + " " + fromY + "L" + toX + ", " + toY}, 500);
+    this.activeScene[neuron.id].connector.animate({path: "M" + fromX + " " + fromY + "L" + toX + ", " + toY}, 500, function() {
+      this[0].style["stroke-dasharray"] = this.getTotalLength() + "px";
+      this[0].style["stroke-dashoffset"] = "0px";
+    });
   }
 
   if (typeof callback === 'function') callback();
@@ -577,16 +575,47 @@ Map.prototype.animateRemove = function(neurons, callback, iteration) {
   var neuron = self.getNeuron(neurons[iteration]);     // neuron object of neuron to delete
 
   this.animateRemoveTitle(neuron, function() {
+    self.animateRemoveConnector(neuron);
     self.animateRemoveRect(neuron, function() {         // only remove the rect once the title animation completes
+      delete self.activeScene[neuron.id];
       if (iteration == neurons.length - 1 && typeof callback === 'function') callback();  // callback once the last neuron rect remove has been animated
     });
   });
+
+
 
   if (iteration + 1 < neurons.length) {                 // call next animateRemove for next neuron that needs removing
     setTimeout(function() {
       self.animateRemove(neurons, callback, iteration + 1);
     }, self.parent.config.animations.remove.interval);
   }
+};
+
+Map.prototype.animateRemoveConnector = function(neuron, callback) {
+  if (n.containsNeuron(this.activeScene, neuron) && typeof this.activeScene[neuron.id].connector !== 'undefined') {     // ensure neuron is present in scene, so a connection needs to be animated away
+    var self = this;
+    var connector = this.activeScene[neuron.id].connector;
+
+    var total = 0;
+
+    connector.attr({"width": 1});       // we will use the unused width attr to calculate the stroke-dasharray when we animate it
+
+    eve.on('raphael.anim.frame.' + connector.id, onAnimate = function(i) {
+      connector[0].style["stroke-dashoffset"] = (1 - connector.attrs.width) * connector.getTotalLength() + "px";       // the raphael dummy elem will fade its opacity, div matches
+      console.log(connector[0].style["stroke-dashoffset"]);
+      // todo: match this to some property that we are actually animating
+    });
+
+    this.activeScene[neuron.id].connector.animate({
+      "width": 0           // an invented property used to calculate the pathlength
+      // todo: find some property to actually animate
+    }, self.parent.config.animations.remove.duration, "linear", function() {
+      eve.unbind('raphael.anim.frame.' + connector.id, onAnimate);
+      this.remove();
+    });
+
+  }
+  if (typeof callback === 'function') callback();
 };
 
 Map.prototype.animateRemoveRect = function(neuron, callback) {
@@ -600,11 +629,9 @@ Map.prototype.animateRemoveRect = function(neuron, callback) {
     "x": x,
     "y": y,
     "width": 0,
-    "height": 0,
-    "opacity": 0
+    "height": 0
   }, self.parent.config.animations.remove.duration, "linear", function() {
     this.remove();
-    delete self.activeScene[neuron.id];
     if (typeof callback === 'function') callback();
   });
 };
@@ -628,7 +655,6 @@ Map.prototype.animateRemoveTitle = function(neuron, callback) {
         row.div.parentNode.removeChild(row.div);
       }
       this.remove();
-      delete neuronSceneObj.title[index];
       if (index == neuronSceneObj.title.length - 1) nextRow();            // only move to callback once final animation is complete
     });
     if (index < neuronSceneObj.title.length - 1) nextRow();               // go directly to next row until final row
@@ -1101,8 +1127,6 @@ neuron.calculateChildAngles = function(neuron) {
     neuron.calculatedChildAngles = true;
   }
 };
-
-
 
 //------------------------------
 // neuron.calculateScene(neuron, config, callback)
