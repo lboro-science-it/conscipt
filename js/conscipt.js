@@ -57,8 +57,6 @@ module.exports = function(config) {
 //            if (typeof neuron.resource !== 'undefined') view.render(neuron);
           });
       
-          // todo: centering the conscipt div without messing up the latex
-
           // todo: responsive type modes -> if screen is wider, resource goes to side of map; if taller, resource goes under map.
           
           // todo: katex TITLES are in ARIAL font, but other katex (in VIEWS) is in its own font
@@ -71,11 +69,9 @@ module.exports = function(config) {
 
           // todo: think about performance benefits through e.g. running all animations simultaneously from a call (and gathering the objects in the other functions)
 
-          // todo: investigate raven.min.js, doubleclick (Stuff found in firefox callstack)
-
-          // todo: check sizing on chrome / explorer - no scroll bars
-
           // show the view div and fill it with the neuron's view
+
+          // todo: changing the recursive functions so they don't have to (e.g.) calculate the length of array every time
           
         }); // end calculateScene
 

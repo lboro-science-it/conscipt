@@ -18,7 +18,6 @@ module.exports = Map;
 function Map(parent, mapDivId, containerDivId) {
   var self = this;
   this.parent = parent;                                 // reference parent Conscipt object for accessing neurons, config, etc
-  
 
   // scene state-related stuff
   this.activeScene = {}, this.activeNeuron = null;      // contains % co-ords etc for currently visible scene
@@ -30,7 +29,8 @@ function Map(parent, mapDivId, containerDivId) {
   this.widthSF = 0, this.heightSF = 0;                  // scaling factor for converting percentage points of scenes to pixels
   this.viewportWidth = 0, this.viewportHeight = 0;      // viewport size + raphael canvas size - not all of which will be drawn to
   this.offsetX = 0, this.offsetY = 0;                   // (viewportWidth - width) / 2; for centring the biggest possible 16:9 space
-  
+  this.viewMode = null;                                 // "portrait or landscape"
+
   this.calculateSize(this.parent.div.id);               // sets all sizes, offsets, based on parent div size
   this.div = dom.addChildDiv({"id": mapDivId,"parent":containerDivId});
 
@@ -45,7 +45,7 @@ function Map(parent, mapDivId, containerDivId) {
 };
 
 //----------------------------
-// Map.ah(neuron), Map.aw(neuron), Map.ax(neuron), Map.ay(neuron)
+// Map.aH(neuron), Map.aW(neuron), Map.aX(neuron), Map.aY(neuron)
 // -
 // Get actual height, width,  x and y in pixels of neuron
 //----------------------------
@@ -69,6 +69,30 @@ Map.prototype.aYC = function(neuron) {
   return this.aY(neuron) + (this.aH(neuron) / 2);
 };
 
+//-----------------------------
+// Map.rW, rH, rX, rY, rXC, rYC
+// - 
+// Calculate the co-ords based on %'s set in rendeiring scene'
+//-----------------------------
+Map.prototype.rW = function(neuron) {
+  return this.scaleX(this.renderingScene[neuron.id].width);
+};
+Map.prototype.rH = function(neuron) {
+  return this.scaleY(this.renderingScene[neuron.id].height);
+};
+Map.prototype.rX = function(neuron) {
+  return this.scaleX(this.renderingScene[neuron.id].x) - (this.rW(neuron) / 2) + this.offsetX;
+};
+Map.prototype.rY = function(neuron) {
+  return this.scaleY(this.renderingScene[neuron.id].y) - (this.rH(neuron) / 2) + this.offsetY;
+};
+Map.prototype.rXC = function(neuron) {
+  return this.rX(neuron) + (this.rW(neuron) / 2);
+};
+Map.prototype.rYC = function(neuron) {
+  return this.rY(neuron) + (this.rH(neuron) / 2);
+};
+
 //---------------------------
 // Map.animateAdd(neurons, callback, iteration)
 // -
@@ -76,13 +100,13 @@ Map.prototype.aYC = function(neuron) {
 //---------------------------
 Map.prototype.animateAdd = function(neurons, callback, iteration) {
   var self = this;
-  if (typeof iteration === 'undefined') var iteration = 0;
+  if (!iteration) var iteration = 0;
   var neuron = self.getNeuron(neurons[iteration]);     // neuron object, use to check if it has a parent, so we know how to animate it in
   self.activeScene[neuron.id] = extend(true, {}, self.renderingScene[neuron.id]);  // clone the details from renderingScene (co-ords, etc)
   
   self.animateAddRect(neuron, function() {            // animate the rect in
     self.animateAddTitle(neuron);                     // once rect is in, animate the title in
-    if (iteration + 1 == neurons.length && typeof callback === 'function') callback();  // once final rect is added, callback
+    if (iteration + 1 == neurons.length && callback) callback();  // once final rect is added, callback
   });
 
   self.animateAddConnector(neuron);
@@ -101,17 +125,12 @@ Map.prototype.animateAddConnector = function(neuron, callback) {
 
     var border = this.parent.config.styles[neuron.style]["border-color"] || "#000";
     var borderWidth = this.parent.config.styles.default["border-width"] || 3;
-    
-//    var fromX = this.scaleX(this.rx(parent)) + this.offsetX;    // from centre point of parent rect in rendering scene - parent will be in position by now
-//    var fromY = this.scaleY(this.ry(parent)) + this.offsetY;
+
+    // connector from parent's centre to neuron's centre
     var fromX = this.rXC(parent);
     var fromY = this.rYC(parent);
-
-//    var toX = this.getRenderingX(neuron) + this.getRenderingWidth(neuron) / 2;    // to centre of own rect in rendering scene
-//    var toY = this.getRenderingY(neuron) + this.getRenderingHeight(neuron) / 2;
     var toX = this.rXC(neuron);
     var toY = this.rYC(neuron);
-
 
     this.activeScene[neuron.id].connector = this.canvas.path("M" + fromX + " " + fromY)
     .attr({
@@ -128,7 +147,7 @@ Map.prototype.animateAddConnector = function(neuron, callback) {
     });
   }
 
-  if (typeof callback === 'function') callback();
+  if (callback) callback();
 };
 
 //--------------------
@@ -158,7 +177,7 @@ Map.prototype.animateAddRect = function(neuron, callback) {
     self.raphOnClickActivate(this, neuron);
     // todo: deal with tabindex stuff
     // self.activeScene[neuron.id].rect[0].tabIndex = 0;
-    if (typeof callback === 'function') callback();
+    if (callback) callback();
   });
 };
 
@@ -240,19 +259,19 @@ Map.prototype.animateAddTitle = function(neuron) {
 //---------------------------
 Map.prototype.animateMove = function(animations, offsetX, offsetY, callback, iteration) {
   var self = this;
-  if (typeof iteration === 'undefined') var iteration = 0;
+  if (!iteration) var iteration = 0;
 
   var neuronAnimation = animations[iteration];                  // animation object, containing co-ords etc
   var neuron = this.activeScene[neuronAnimation.id];            // actual neuron object that is being dealt with
-  this.updateActiveSceneNeuronProperties(neuronAnimation.id);   // update co-ords of neuron in activeScene to match those in renderingScene
+  this.activeScene[neuronAnimation.id].role = this.renderingScene[neuronAnimation.id].role;
 
   this.animateMoveTitle(neuronAnimation, offsetX, offsetY);
-  if (typeof this.activeScene[neuron.parent] !== 'undefined') { // if neuron parent is in scene we need to animate connector
+  if (this.activeScene[neuron.parent]) { // if neuron parent is in scene we need to animate connector
     var parentAnimation = getAnimationByNeuronId(animations, neuron.parent);  // we need parent animation in order to do this.
     this.animateMoveConnector(neuronAnimation, parentAnimation, offsetX, offsetY);
   }
   this.animateMoveRect(neuronAnimation, offsetX, offsetY, function() {
-    if (iteration + 1 == animations.length && typeof callback === 'function') callback(); // callback only called after final rect is animated
+    if (iteration + 1 == animations.length && callback) callback(); // callback only called after final rect is animated
   });
 
   if (iteration + 1 < animations.length) {                      // animate next if there are still iteratons to go
@@ -268,7 +287,7 @@ Map.prototype.animateMove = function(animations, offsetX, offsetY, callback, ite
 Map.prototype.animateMoveConnector = function(neuronAnimation, parentAnimation, offsetX, offsetY) {
   var self = this;
   var neuron = this.activeScene[neuronAnimation.id];
-  var hasConnector = (typeof neuron.connector !== 'undefined');
+  var hasConnector = (neuron.connector);
 
   if (hasConnector) {   // only try and animate connector if it definitely exists
     var fromX = parentAnimation.x + parentAnimation.width / 2 + offsetX;
@@ -297,7 +316,7 @@ Map.prototype.animateMoveRect = function(neuronAnimation, offsetX, offsetY, call
     "width": neuronAnimation.width, 
     "height": neuronAnimation.height
   }, self.parent.config.animations.move.duration, "linear", function() {
-    if (typeof callback === 'function') callback();
+    if (callback) callback();
   });
 };
 
@@ -337,7 +356,7 @@ Map.prototype.animateMoveTitle = function(neuronAnimation, offsetX, offsetY) {
       "font-size": fontSize,
       "opacity": opacity
     }, self.parent.config.animations.move.duration, "linear", function() {
-      if (typeof row.div !== 'undefined') eve.unbind('raphael.anim.frame.' + row.text.id, onAnimate);
+      if (row.div) eve.unbind('raphael.anim.frame.' + row.text.id, onAnimate);
     });
 
     nextRow();
@@ -358,7 +377,7 @@ Map.prototype.animateRemove = function(neurons, callback, iteration) {
     self.animateRemoveConnector(neuron);
     self.animateRemoveRect(neuron, function() {         // only remove the rect once the title animation completes
       delete self.activeScene[neuron.id];
-      if (iteration == neurons.length - 1 && typeof callback === 'function') callback();  // callback once the last neuron rect remove has been animated
+      if (iteration == neurons.length - 1 && callback) callback();  // callback once the last neuron rect remove has been animated
     });
   });
 
@@ -370,7 +389,7 @@ Map.prototype.animateRemove = function(neurons, callback, iteration) {
 };
 
 Map.prototype.animateRemoveConnector = function(neuron, callback) {
-  if (n.containsNeuron(this.activeScene, neuron) && typeof this.activeScene[neuron.id].connector !== 'undefined') {     // ensure neuron is present in scene, so a connection needs to be animated away
+  if (n.containsNeuron(this.activeScene, neuron) && this.activeScene[neuron.id].connector) {     // ensure neuron is present in scene, so a connection needs to be animated away
 
     var self = this;
     var connector = this.activeScene[neuron.id].connector;
@@ -390,7 +409,7 @@ Map.prototype.animateRemoveConnector = function(neuron, callback) {
     });
 
   }
-  if (typeof callback === 'function') callback();
+  if (callback) callback();
 };
 
 Map.prototype.animateRemoveRect = function(neuron, callback) {
@@ -407,7 +426,7 @@ Map.prototype.animateRemoveRect = function(neuron, callback) {
     "height": 0
   }, self.parent.config.animations.remove.duration, "linear", function() {
     this.remove();
-    if (typeof callback === 'function') callback();
+    if (callback) callback();
   });
 };
 
@@ -434,7 +453,7 @@ Map.prototype.animateRemoveTitle = function(neuron, callback) {
     });
     if (index < neuronSceneObj.title.length - 1) nextRow();               // go directly to next row until final row
   }, function() {
-    if (typeof callback === 'function') callback();
+    if (callback) callback();
   });
 };
 
@@ -464,6 +483,9 @@ Map.prototype.calculateSize = function(containerDivId) {
 
   this.offsetX = (this.viewportWidth - this.width) / 2;     // now this.offsetX and this.offsetY can be applied to keep the map centred
   this.offsetY = (this.viewportHeight - this.height) / 2;
+
+  if (this.viewportWidth > this.viewportHeight) this.viewMode = "landscape";
+  else this.viewMode = "portrait";
 
   // todo: incorporate view mode (i.e. if we are viewing a resource)
   // todo: incorporate view mode (i.e. portrait vs landscape, small screen)
@@ -524,25 +546,6 @@ Map.prototype.getOriginY = function(neuron, scene) {
   else return this.aYC(neuron);
 };
 
-Map.prototype.rW = function(neuron) {
-  return this.scaleX(this.renderingScene[neuron.id].width);
-};
-Map.prototype.rH = function(neuron) {
-  return this.scaleY(this.renderingScene[neuron.id].height);
-};
-Map.prototype.rX = function(neuron) {
-  return this.scaleX(this.renderingScene[neuron.id].x) - (this.rW(neuron) / 2) + this.offsetX;
-};
-Map.prototype.rY = function(neuron) {
-  return this.scaleY(this.renderingScene[neuron.id].y) - (this.rH(neuron) / 2) + this.offsetY;
-};
-Map.prototype.rXC = function(neuron) {
-  return this.rX(neuron) + (this.rW(neuron) / 2);
-};
-Map.prototype.rYC = function(neuron) {
-  return this.rY(neuron) + (this.rH(neuron) / 2);
-};
-
 // register click handler for a raphael object to activate a neuron + set cursor
 Map.prototype.raphOnClickActivate = function(raphaelObj, neuron) {
   var self = this;
@@ -555,16 +558,6 @@ Map.prototype.raphOnClickActivate = function(raphaelObj, neuron) {
   }, function() {
     this.attr({"cursor": "normal"});
   });
-};
-
-// function that takes a percentage x (as defined in neuron scenes) and returns the position based on scaling factor
-Map.prototype.scaleX = function(x) {
-  return x * this.widthSF;
-};
-
-// return y co-ord based on scaling factor based on height of screen
-Map.prototype.scaleY = function(y) {
-  return y * this.heightSF;
 };
 
 //------------------------
@@ -580,6 +573,7 @@ Map.prototype.render = function(neuron, callback) {
 
   var animations = { remove: [], anchor: [], move: [], add: [] };
   var anchorGreatestX = this.width, anchorLowestX = 0, anchorGreatestY = this.height, anchorLowestY = 0;
+  var sceneGreatestX = 0, sceneLowestX = this.width, sceneGreatestY = 0, sceneLowestY = this.height;
 
   async.series([          
     function(next) {  // check what neurons need to be removed from scene, in order starting from activeNeuron
@@ -608,14 +602,11 @@ Map.prototype.render = function(neuron, callback) {
     },
     function(next) {  // check what neurons need to be moved
       if (self.activeNeuron !== null) {
-        var renderingNeuron = self.renderingNeuron;
-
         // calculate difference between new active neuron's centre position in new scene and current scene
-        var sceneOffsetX = self.aXC(renderingNeuron) - self.rXC(renderingNeuron);
-        var sceneOffsetY = self.aYC(renderingNeuron) - self.rYC(renderingNeuron);
+        var sceneOffsetX = self.aXC(neuron) - self.rXC(neuron);
+        var sceneOffsetY = self.aYC(neuron) - self.rYC(neuron);
 
         async.each(self.activeScene, function(neuron, nextNeuron) {
-
           if (n.containsNeuron(self.renderingScene, neuron)) {   // if neuron exists in activeScene and renderingScene, it needs to be moved
             animations.anchor.push({
               id: neuron.id,
@@ -625,7 +616,7 @@ Map.prototype.render = function(neuron, callback) {
               height: self.rH(neuron)
             });
 
-            // track any of the neurons which have gone beyond the edge of the canvas, which will be used to offset when animating moves
+            // track any of the neurons which would go beyond the edge of the canvas, which will be used to offset when animating moves
             if (self.rX(neuron) + sceneOffsetX < anchorLowestX) anchorLowestX = self.rX(neuron) + sceneOffsetX;
             if (self.rX(neuron) + self.rW(neuron) + sceneOffsetX > anchorGreatestX) anchorGreatestX = self.rX(neuron) + self.rW(neuron) + sceneOffsetX;
             if (self.rY(neuron) + sceneOffsetY < anchorLowestY) anchorLowestY = self.rY(neuron) + sceneOffsetY;
@@ -646,9 +637,47 @@ Map.prototype.render = function(neuron, callback) {
         });
       } else next();
     },
+    function(next) {      // find the outer points of the scene
+      async.each(self.renderingScene, function(neuron, nextNeuron) {
+        if (self.rX(neuron) < sceneLowestX) sceneLowestX = self.rX(neuron);
+        if (self.rX(neuron) + self.rW(neuron) > sceneGreatestX) sceneGreatestX = self.rX(neuron) + self.rW(neuron);
+        if (self.rY(neuron) < sceneLowestY) sceneLowestY = self.rY(neuron);
+        if (self.rY(neuron) + self.rH(neuron) > sceneGreatestY) sceneGreatestY = self.rY(neuron) + self.rH(neuron);
+        nextNeuron();
+      }, function() {
+        // we now know the lowest and greatest X and Y co-ords.
+
+        if (self.renderingNeuron.resource) { // rendering neuron has a resource
+          console.log("it has a resource");
+        } else {
+          console.log("no resource");
+        }
+
+        // IF we have a resource
+        // check whether landscape or portrait
+
+        // if landscape, check whether the distance from lowest x to greatest x would fit in 50% of screen width
+        // if portrait, check whether the distance from lowest y to greatest x would fit in 50% of height of screen
+
+        // (later, do same for both regardless of orientation...)
+
+        // whether or not we have a resource, do the same to scale down the whole thing if it would go off the edge
+
+        // set a scale variable on the map object accordingly if the screen is bigger
+
+        // this handles size
+        // but we also need to factor it to x and y co-ords: essentially, just put things at scale % of what their x and y is
+
+        // finally we need to make sure this won't mess up rendering i.e. if the active scene is rendered at 0.9 scale factor, the new scene,
+        // if rendered at 1.0 should still animate smoothly.
+
+      });
+
+
+      next();
+    },
     function(next) {  // move ancestors to new sizes and positions relative to new active neuron
       if (animations.anchor.length > 0) {
-
         var anchorOffsetX = 0, anchorOffsetY = 0;
         // apply anchor offsets to prevent rects going off screen
         if (anchorLowestX < 0) anchorOffsetX = -anchorLowestX + self.scaleX(4);
@@ -689,7 +718,7 @@ Map.prototype.render = function(neuron, callback) {
   ], function() {
     self.rendering = false;
     self.activeNeuron = neuron;
-    if (typeof callback !== 'undefined') callback();
+    if (callback) callback();
   });
 };
 
@@ -704,22 +733,20 @@ Map.prototype.resize = function() {
   this.render(this.activeNeuron);
 };
 
-//-------------------------
-// Map.updateActiveSceneNeuron
-// -
-// Updates co-ords, widths, etc of a neuron in active scene based on renderingScene
-//-------------------------
-Map.prototype.updateActiveSceneNeuronProperties = function(neuronId) {
-  this.activeScene[neuronId].x = this.renderingScene[neuronId].x;
-  this.activeScene[neuronId].y = this.renderingScene[neuronId].y;
-  this.activeScene[neuronId].width = this.renderingScene[neuronId].width;
-  this.activeScene[neuronId].height = this.renderingScene[neuronId].height;
-  this.activeScene[neuronId].role = this.renderingScene[neuronId].role;
+// function that takes a percentage x (as defined in neuron scenes) and returns the position based on scaling factor
+Map.prototype.scaleX = function(x) {
+  return x * this.widthSF;
+};
+
+// return y co-ord based on scaling factor based on height of screen
+Map.prototype.scaleY = function(y) {
+  return y * this.heightSF;
 };
 
 // as implied, iterates through the array of animations looking for the one where id matches id
 function getAnimationByNeuronId(animations, id) {
-  for (var i = 0; i < animations.length; i++) {
+  var length = animations.length;
+  for (var i = 0; i < length; i++) {
     if (animations[i].id == id) return animations[i];
   }
   return false;
