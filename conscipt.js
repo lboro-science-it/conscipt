@@ -285,6 +285,7 @@ function Map(parent, mapDivId, containerDivId) {
   this.viewportWidth = 0, this.viewportHeight = 0;      // viewport size + raphael canvas size - not all of which will be drawn to
   this.offsetX = 0, this.offsetY = 0;                   // (viewportWidth - width) / 2; for centring the biggest possible 16:9 space
   this.viewMode = null;                                 // "portrait or landscape"
+  this.viewXSF = 1, this.viewYSF = 1;
 
   this.calculateSize(this.parent.div.id);               // sets all sizes, offsets, based on parent div size
   this.div = dom.addChildDiv({"id": mapDivId,"parent":containerDivId});
@@ -899,33 +900,29 @@ Map.prototype.render = function(neuron, callback) {
         if (self.rY(neuron) < sceneLowestY) sceneLowestY = self.rY(neuron);
         if (self.rY(neuron) + self.rH(neuron) > sceneGreatestY) sceneGreatestY = self.rY(neuron) + self.rH(neuron);
         nextNeuron();
-      }, function() {
-        // we now know the lowest and greatest X and Y co-ords.
+      }, function() {    // calculate scaling factor based on whether the current active node has a resource, page orentiation... etc
 
-        if (self.renderingNeuron.resource) { // rendering neuron has a resource
-          console.log("it has a resource");
-        } else {
-          console.log("no resource");
+        var width = self.viewportWidth;
+        var height = self.viewportHeight;
+
+        if (self.renderingNeuron.resource) {  // rendering neuron has a resource
+          if (self.viewMode == "landscape") width = width / 2; 
+          else height = height / 2;
         }
 
-        // IF we have a resource
-        // check whether landscape or portrait
+        var xDiff = sceneGreatestX - sceneLowestX;
+        var yDiff = sceneGreatestY - sceneLowestY;
+        var xSF, ySF;             // scaling factor vars
 
-        // if landscape, check whether the distance from lowest x to greatest x would fit in 50% of screen width
-        // if portrait, check whether the distance from lowest y to greatest x would fit in 50% of height of screen
+        if (xDiff > width) {      // neurons are wider than space, so we need to scale it down
+          xSF = width / xDiff;
+          console.log("xscalingfactor: " + xSF);
+        }
 
-        // (later, do same for both regardless of orientation...)
-
-        // whether or not we have a resource, do the same to scale down the whole thing if it would go off the edge
-
-        // set a scale variable on the map object accordingly if the screen is bigger
-
-        // this handles size
-        // but we also need to factor it to x and y co-ords: essentially, just put things at scale % of what their x and y is
-
-        // finally we need to make sure this won't mess up rendering i.e. if the active scene is rendered at 0.9 scale factor, the new scene,
-        // if rendered at 1.0 should still animate smoothly.
-
+        if (yDiff > height) {
+          ySF = height / yDiff;
+          console.log("yscalingfactor: " + ySF);
+        }
       });
 
 
