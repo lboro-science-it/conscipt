@@ -44,7 +44,7 @@ module.exports = function(config) {
         n.calculateScene(neuron, sceneConfig, function() {
           
           var canRenderView = false;
-
+/*
           if (view.visible) {
             view.hide(function() {
               view.clear(function() {
@@ -52,19 +52,28 @@ module.exports = function(config) {
               });
             });
           }
-
+*/
           map.render(neuron, function() {
-            if (typeof neuron.resource !== 'undefined') view.render(neuron);
+//            if (typeof neuron.resource !== 'undefined') view.render(neuron);
           });
       
           // todo: centering the conscipt div without messing up the latex
 
           // todo: responsive type modes -> if screen is wider, resource goes to side of map; if taller, resource goes under map.
-          // could either make map always a 16:9 div, centred, with a conversion between conscipt co-ords and actual on-screen co-ords
-          // or could make raphael always 100% width and height, with positioning calculated accordingly, making it easier to maintain katex bits' positions.
-          // then just need to programatically change the view div styling (and content styling)
-
+          
           // todo: katex TITLES are in ARIAL font, but other katex (in VIEWS) is in its own font
+
+          // todo: performance could maybe be improved by making text a single element with /n's
+
+          // todo: search for memory leaks
+
+          // todo: check container div size across browsers so no scrollbars (firefox)
+
+          // todo: think about performance benefits through e.g. running all animations simultaneously from a call (and gathering the objects in the other functions)
+
+          // todo: investigate raven.min.js, doubleclick (Stuff found in firefox callstack)
+
+          // todo: check sizing on chrome / explorer - no scroll bars
 
           // show the view div and fill it with the neuron's view
           

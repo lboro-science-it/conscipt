@@ -19,6 +19,7 @@ function Map(parent, mapDivId, containerDivId) {
   var self = this;
   this.parent = parent;                                 // reference parent Conscipt object for accessing neurons, config, etc
   
+
   // scene state-related stuff
   this.activeScene = {}, this.activeNeuron = null;      // contains % co-ords etc for currently visible scene
   this.renderingScene = {}, this.renderingNeuron = {};  // contains % co-ords etc for currently rendering neuron / scene
@@ -46,19 +47,19 @@ function Map(parent, mapDivId, containerDivId) {
 //----------------------------
 // Map.ah(neuron), Map.aw(neuron), Map.ax(neuron), Map.ay(neuron)
 // -
-// Return neuron height, width, x, y (in % of drawing area) in the active scene
+// Get actual height, width,  x and y in pixels of neuron
 //----------------------------
 Map.prototype.ah = function(neuron) {
-  return this.activeScene[neuron.id].height;
+  return this.activeScene[neuron.id].rect.attrs.height;
 };
 Map.prototype.aw = function(neuron) {
-  return this.activeScene[neuron.id].width;
+  return this.activeScene[neuron.id].rect.attrs.width;
 };
 Map.prototype.ax = function(neuron) {
-  return this.activeScene[neuron.id].x;
+  return this.activeScene[neuron.id].rect.attrs.x;
 };
 Map.prototype.ay = function(neuron) {
-  return this.activeScene[neuron.id].y;
+  return this.activeScene[neuron.id].rect.attrs.y;
 };
 
 //---------------------------
@@ -84,28 +85,11 @@ Map.prototype.animateAdd = function(neurons, callback, iteration) {
       self.animateAdd(neurons, callback, iteration + 1);
     }, self.parent.config.animations.add.interval);
   }
-
-  //----------
-  // STUFF RE: CONNECTION LINE
-  //----------
-/*
-  if (typeof neuronObj.parent !== 'undefined') {  // if neuron we are adding has a parent then it needs a line connecting it to it
-    var from = {
-      x: self.activeScene[neuronObj.parent.id].rect.attrs.x + self.activeScene[neuronObj.parent.id].rect.attrs.width / 2,
-      y: self.activeScene[neuronObj.parent.id].rect.attrs.y + self.activeScene[neuronObj.parent.id].rect.attrs.height / 2
-    };
-    var to = {
-      x: animation.x + animation.width / 2,
-      y: animation.y + animation.height / 2
-    };
-    self.connections[neurons[iteration].id] = self.canvas.path("M" + from.x + " " + from.y).attr({stroke: animation.border}).toBack();
-    self.connections[neurons[iteration].id].animate({path: "M" + from.x + " " + from.y + "L" + to.x + ", " + to.y}, 500);
-  }
-*/
 };
 
 Map.prototype.animateAddConnector = function(neuron, callback) {
   if (n.hasParent(neuron)) {  // only add connector if neuron has a parent
+    var self = this;
     var parent = neuron.parent;
 
     var border = this.parent.config.styles[neuron.style]["border-color"] || "#000";
@@ -123,7 +107,9 @@ Map.prototype.animateAddConnector = function(neuron, callback) {
       "pathlength": 0
     })
     .toBack();
-    this.activeScene[neuron.id].connector.animate({path: "M" + fromX + " " + fromY + "L" + toX + ", " + toY}, 500, function() {
+    this.activeScene[neuron.id].connector.animate({
+      path: "M" + fromX + ", " + fromY + "L" + toX + ", " + toY
+    }, self.parent.config.animations.add.duration, function() {
       this[0].style["stroke-dasharray"] = this.getTotalLength() + "px";
       this[0].style["stroke-dashoffset"] = "0px";
     });
@@ -272,24 +258,20 @@ Map.prototype.animateMoveConnector = function(neuronAnimation, parentAnimation, 
   var hasConnector = (typeof neuron.connector !== 'undefined');
 
   if (hasConnector) {   // only try and animate connector if it definitely exists
-    // calculating scale = current path length vs length of diff between parent centre and neuron centre
+    var fromX = parentAnimation.x + parentAnimation.width / 2 + offsetX;
+    var fromY = parentAnimation.y + parentAnimation.height / 2 + offsetY;
+    var toX = neuronAnimation.x + neuronAnimation.width / 2 + offsetX;
+    var toY = neuronAnimation.y + neuronAnimation.height / 2 + offsetY;
 
+    var path = "M" + fromX + ", " + fromY + "L" + toX + ", " + toY;
 
-    // there are four separate transform cases:
-    // 1. parent is above and left of neuron
-    // connector top left co-ord == parent centre
-    // connector bottom right == neuron centre = top left + w + h
+    neuron.connector[0].style["stroke-dasharray"] = "9999px";       // ensures whole line is drawn when 'growing' lines
 
-    // 2. parent is below and left of neuron
-    // connector bottom left co-ord == parent centre (or connector top left + connector height)
-    // connector top right co-ord == neuron centre = top left + w
-
-    // 3. parent is above and right of neuron
-
-    // 4. parent is below and right of neuron
-
-    // if parent is to the left of neuron, we can just transform 
-
+    neuron.connector.animate({
+      path: path
+    }, self.parent.config.animations.move.duration, function() {        // once completed update this so can be animated out properly
+      this[0].style["stroke-dasharray"] = this.getTotalLength() + "px";
+    });
   }
 };
 
@@ -356,7 +338,7 @@ Map.prototype.animateMoveTitle = function(neuronAnimation, offsetX, offsetY) {
 //------------------------
 Map.prototype.animateRemove = function(neurons, callback, iteration) {
   var self = this;
-  if (typeof iteration === 'undefined') var iteration = 0;
+  var iteration = iteration || 0;
   var neuron = self.getNeuron(neurons[iteration]);     // neuron object of neuron to delete
 
   this.animateRemoveTitle(neuron, function() {
@@ -367,8 +349,6 @@ Map.prototype.animateRemove = function(neurons, callback, iteration) {
     });
   });
 
-
-
   if (iteration + 1 < neurons.length) {                 // call next animateRemove for next neuron that needs removing
     setTimeout(function() {
       self.animateRemove(neurons, callback, iteration + 1);
@@ -378,15 +358,15 @@ Map.prototype.animateRemove = function(neurons, callback, iteration) {
 
 Map.prototype.animateRemoveConnector = function(neuron, callback) {
   if (n.containsNeuron(this.activeScene, neuron) && typeof this.activeScene[neuron.id].connector !== 'undefined') {     // ensure neuron is present in scene, so a connection needs to be animated away
+
     var self = this;
     var connector = this.activeScene[neuron.id].connector;
-
-    var total = 0;
+    var pathLength = connector.getTotalLength();
 
     connector.attr({"width": 0});       // we will use the unused width attr to calculate the stroke-dasharray when we animate it
 
     eve.on('raphael.anim.frame.' + connector.id, onAnimate = function(i) {
-      connector[0].style["stroke-dashoffset"] = connector.attrs.width * connector.getTotalLength() + "px";       // the raphael dummy elem will fade its opacity, div matches
+      connector[0].style["stroke-dashoffset"] = connector.attrs.width * pathLength + "px";       // the raphael dummy elem will fade its opacity, div matches
     });
 
     this.activeScene[neuron.id].connector.animate({
@@ -511,22 +491,6 @@ Map.prototype.findChildrenToRemove = function(neuron, activeNeuron, newScene, re
   }
 };
 
-Map.prototype.getActiveHeight = function(neuron) {
-  return this.scaleY(this.ah(neuron));
-};
-
-Map.prototype.getActiveWidth = function(neuron) {
-  return this.scaleX(this.aw(neuron));
-};
-
-Map.prototype.getActiveX = function(neuron) {
-  return this.scaleX(this.ax(neuron) - this.aw(neuron) / 2) + this.offsetX;
-};
-
-Map.prototype.getActiveY = function(neuron) {
-  return this.scaleY(this.ay(neuron) - this.ah(neuron) / 2) + this.offsetY;
-};
-
 Map.prototype.getNeuron = function(neuronId) {
   return this.parent.neurons[neuronId];
 };
@@ -536,7 +500,7 @@ Map.prototype.getOriginX = function(neuron, scene) {
   var neuron = neuron.parent || neuron;
   var scene = scene || "rendering";
   if (scene == "rendering") return this.getRenderingX(neuron) + this.getRenderingWidth(neuron) / 2;
-  else return this.getActiveX(neuron) + this.getActiveWidth(neuron) / 2;
+  else return this.ax(neuron) + this.aw(neuron) / 2;
 };
 
 // return either centre of parent, or centre of own position if no parent
@@ -544,7 +508,7 @@ Map.prototype.getOriginY = function(neuron, scene) {
   var neuron = neuron.parent || neuron;
   var scene = scene || "rendering";
   if (scene == "rendering") return this.getRenderingY(neuron) + this.getRenderingHeight(neuron) / 2;
-  else return this.getActiveY(neuron) + this.getActiveHeight(neuron) / 2;
+  else return this.ay(neuron) + this.ah(neuron) / 2;
 };
 
 Map.prototype.getRenderingHeight = function(neuron) {
@@ -642,6 +606,7 @@ Map.prototype.render = function(neuron, callback) {
       next();
     },
     function(next) {  // animate the removals
+      // todo: animations of stuff on screen needs to be relative to its actual position, not what we 'think' its position is
       if (animations.remove.length > 0) {
         self.animateRemove(animations.remove, function() {
           next();
@@ -650,17 +615,21 @@ Map.prototype.render = function(neuron, callback) {
     },
     function(next) {  // check what neurons need to be moved
       if (self.activeNeuron !== null) {
-        // calculate difference between new active neuron's position in new scene and current scene
-        var sceneOffsetX = self.scaleX(self.ax(self.renderingNeuron) - self.rx(self.renderingNeuron));
-        var sceneOffsetY = self.scaleY(self.ay(self.renderingNeuron) - self.ry(self.renderingNeuron));
+        var renderingNeuron = self.renderingNeuron;
 
-        // offset = difference between new active node's position in the current scene and its position in the new scene (centre co-ordinates)
+        // calculate difference between new active neuron's position in new scene and current scene
+        var sceneOffsetX = (self.ax(renderingNeuron) + self.aw(renderingNeuron) / 2) - (self.getRenderingX(renderingNeuron) + self.getRenderingWidth(renderingNeuron) / 2);
+        var sceneOffsetY = (self.ay(renderingNeuron) + self.ah(renderingNeuron) / 2) - (self.getRenderingY(renderingNeuron) + self.getRenderingHeight(renderingNeuron) / 2);
 
         async.each(self.activeScene, function(neuron, nextNeuron) {
+
+          // todo: probably need to use only the neuron's actual co-ordinates when calculating its positions for moving
+          // ... otherwise we will need to bloody account for smallness of screen all the time etc
+
           if (n.containsNeuron(self.renderingScene, neuron)) {   // if neuron exists in activeScene and renderingScene, it needs to be moved
             animations.anchor.push({
               id: neuron.id,
-              x: self.getRenderingX(neuron) + sceneOffsetX ,
+              x: self.getRenderingX(neuron) + sceneOffsetX,
               y: self.getRenderingY(neuron) + sceneOffsetY,
               width: self.getRenderingWidth(neuron),
               height: self.getRenderingHeight(neuron)
