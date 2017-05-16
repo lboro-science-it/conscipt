@@ -23,7 +23,7 @@ module.exports = {
     "dom": {
       "body": {
         "style": {
-          "background": "#fffff0",
+          "background": "#ffffcc",
           "height": "100%",
           "margin": "0"
         }
@@ -72,7 +72,7 @@ module.exports = {
       "default": {
         "border-color": "#000000",
         "border-width": 3,
-        "fill": "#fffff0"
+        "fill": "#ffffcc"
       }
     },
     "animations": {
@@ -728,7 +728,8 @@ Map.prototype.calculateSize = function(containerDivId) {
   var containerDiv = document.getElementById(containerDivId);
 
   this.viewportWidth = containerDiv.offsetWidth;    // viewportHeight and viewportWidth - make entire viewport a raphael canvas
-  this.viewportHeight = containerDiv.offsetHeight;  
+  this.viewportHeight = containerDiv.offsetHeight;
+  console.log(this.viewportWidth + ", " + this.viewportHeight);
 
   if (((containerDiv.offsetWidth / 16) * 9) > containerDiv.offsetHeight) {  // if wider than 16:9 ratio, calculate width based on height
     this.height = containerDiv.offsetHeight;

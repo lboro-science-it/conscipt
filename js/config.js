@@ -14,7 +14,7 @@ module.exports = {
     "dom": {
       "body": {
         "style": {
-          "background": "#fffff0",
+          "background": "#ffffcc",
           "height": "100%",
           "margin": "0"
         }
@@ -63,7 +63,7 @@ module.exports = {
       "default": {
         "border-color": "#000000",
         "border-width": 3,
-        "fill": "#fffff0"
+        "fill": "#ffffcc"
       }
     },
     "animations": {
