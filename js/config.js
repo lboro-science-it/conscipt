@@ -75,6 +75,10 @@ module.exports = {
         "interval": 100,
         "duration": 500
       },
+      "anchor": {
+        "interval": 0,
+        "duration": 500
+      },
       "move": {
         "interval": 0,
         "duration": 500

@@ -18,10 +18,9 @@ function View(parent, viewDivId, containerDivId) {
     "id": viewDivId,
     "parent": containerDivId,
     "style": {
-      "display": "none",
-      "height": "100%",
+      "visibility": "hidden",
       "left": "50%",
-      "padding": "2em",
+      "margin-left": "5em",
       "position": "absolute",
       "top": "0",
       "width": "50%"
@@ -48,7 +47,7 @@ View.prototype.hide = function(callback) {
     if (!div.style.opacity) div.style.opacity = 1;
     if (div.style.opacity == 0) {
       clearInterval(fadeOutEffect);
-      div.style.display = "none";
+      div.style.visibility = "hidden";
       self.visible = false;
       callback();
     }
@@ -60,13 +59,25 @@ View.prototype.render = function(neuron) {
   var self = this;
   var content = neuron.resource;
 
+  var headerDiv = dom.addChildDiv({
+    "id": neuron.id + "-resource-title",
+    "parent": self.div.id,
+    "style": {
+      "font-family": "arial"
+    }
+  });
+
+  var header = document.createElement("H1");
+  header.innerHTML = "Resource";
+  headerDiv.appendChild(header);
+
   async.eachOf(content, function(component, index, nextComponent) {   // iterate the components in the neuron's resource
     var div = dom.addChildDiv({        // create a div for each component
       "id": neuron.id + "-resource-" + index,
       "parent": self.div.id,
       "style": {
         "font-family": "arial",
-        "padding": "1em"
+        "padding-top": "1em"
       }
 
     });
@@ -99,6 +110,7 @@ View.prototype.render = function(neuron) {
             qPart.id = qRow.id + "-text";
             qPart.style.width = "40%";
             qPart.style.display = "inline-block";
+            qPart.style.cursor = "pointer";
 
             qRow.appendChild(qPart);
             for (var qType in content.qs[i]) {              // test what type of question it is
@@ -112,15 +124,33 @@ View.prototype.render = function(neuron) {
             var aPart = document.createElement("DIV");
             aPart.id = qBlock.id + "-a-" + (i + 1);
             aPart.style.display = "inline-block";
+            aPart.style.visibility = "hidden";
+
+            qPart.setAttribute('a-part', aPart.id);
 
             qRow.appendChild(aPart);
             for (var aType in content.as[i]) {              // test what type of answer it is
               if (aType == "latex") {
-                aPart.innerHTML += katex.renderToString(content.as[i][aType]);
+                aPart.innerHTML += katex.renderToString("=" + content.as[i][aType]);
               } else {    // just treat it as html
                 aPart.innerHTML += content.as[i][aType];
               }
             }
+
+            qPart.addEventListener('click', function() {      // activate neuron's scene on click
+              console.log("qRow was clicked!");
+              var aPart = document.getElementById(this.getAttribute('a-part'));
+
+              aPart.style.visibility = "";
+              aPart.style.opacity = 0;
+              var fadeIn = setInterval(function() {
+                if (aPart.style.opacity == 1) {
+                  clearInterval(fadeIn);
+                } else {
+                  aPart.style.opacity = parseFloat(aPart.style.opacity) + 0.1;
+                }
+              }, 50);
+            });      
 
             qBlock.appendChild(qRow);
           }
@@ -129,6 +159,12 @@ View.prototype.render = function(neuron) {
     }
     nextComponent();
   }, function() { // all components are in the div
+    var viewHeight = self.div.offsetHeight;
+    var viewportHeight = self.parent.div.offsetHeight;
+
+    // position the div vertical centre
+    self.div.style.top = ((viewportHeight - viewHeight) / 2) + "px";
+
     self.show();
   });
 };
@@ -136,13 +172,13 @@ View.prototype.render = function(neuron) {
 View.prototype.show = function() {
   var self = this;
   var div = this.div;
+  if (!div.style.opacity) {
+    div.style.opacity = 0;
+  }
+  div.style.visibility = "";
 
   var fadeInEffect = setInterval(function() {
-    if (!div.style.opacity) {
-      div.style.opacity = 0;
-    }
     if (div.style.opacity == 1) {
-      div.style.display = "block";
       self.visible = true;
       clearInterval(fadeInEffect);
     } else {
