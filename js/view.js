@@ -60,7 +60,6 @@ View.prototype.render = function(neuron) {
   var self = this;
   var content = neuron.resource;
 
-  console.log(content);
   async.eachOf(content, function(component, index, nextComponent) {   // iterate the components in the neuron's resource
     var div = dom.addChildDiv({        // create a div for each component
       "id": neuron.id + "-resource-" + index,
@@ -128,11 +127,9 @@ View.prototype.render = function(neuron) {
         }
       }
     }
-    console.log(component);
     nextComponent();
   }, function() { // all components are in the div
     self.show();
-    console.log(self.div);
   });
 };
 

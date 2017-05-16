@@ -11,7 +11,7 @@
     <script src="conscipt.js"></script>
   </head>
   <body>
-    <div id="conscipt"></div>
+    <div id="conscipt"><div id="fiddymarker" style="border: 1px solid #d4d4d4; width: 50%; position: absolute; left: 0; right: 0; height: 50%;"></div></div>
     <script>
       window.onload = function() {
         var conscipt = Conscipt({
@@ -60,14 +60,29 @@
             "1-1-1": {
               "title": [
                 "Positive powers",
-                {"latex": "\\text{of } x"},                     // LaTeX here
+                {"latex": "\\text{of }x"},                     // LaTeX here
                 "(polynomials)"
               ],
               "style": "neuron_1",
               "parent_id": "1-1",
               "resource": [
-                "some text",
-                {"latex": "e = mc^2"}
+                {"qblock": {
+                    "qtitle": "Integrate the following:",
+                    "atitle": "Answers:",
+                    "qs": [
+                      {"latex": "\\displaystyle \\int x^2 dx"},
+                      {"latex": "\\displaystyle \\int x^3 dx"},
+                      {"latex": "\\displaystyle \\int \\frac{1}{5}x^6 dx"},
+                      {"latex": "\\displaystyle \\int (x+2)^2 dx"}
+                    ],
+                    "as": [
+                      {"latex": "\\displaystyle \\frac{x^3}{3} + c"},
+                      {"latex": "\\displaystyle \\frac{x^4}{4} + c"},
+                      {"latex": "\\displaystyle \\frac{1}{35} x^7 + c"},
+                      {"latex": "\\displaystyle \\frac{x^3}{3} + 2x^2 + 4x + c"}
+                    ]
+                  }
+                }
               ]
             },
             "1-1-2": {

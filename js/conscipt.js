@@ -44,7 +44,7 @@ module.exports = function(config) {
         n.calculateScene(neuron, sceneConfig, function() {
           
           var canRenderView = false;
-/*
+
           if (view.visible) {
             view.hide(function() {
               view.clear(function() {
@@ -52,9 +52,9 @@ module.exports = function(config) {
               });
             });
           }
-*/
+
           map.render(neuron, function() {
-//            if (typeof neuron.resource !== 'undefined') view.render(neuron);
+            if (neuron.resource) view.render(neuron);
           });
       
           // todo: responsive type modes -> if screen is wider, resource goes to side of map; if taller, resource goes under map.

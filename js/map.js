@@ -30,7 +30,7 @@ function Map(parent, mapDivId, containerDivId) {
   this.viewportWidth = 0, this.viewportHeight = 0;      // viewport size + raphael canvas size - not all of which will be drawn to
   this.offsetX = 0, this.offsetY = 0;                   // (viewportWidth - width) / 2; for centring the biggest possible 16:9 space
   this.viewMode = null;                                 // "portrait or landscape"
-  this.viewXSF = 1, this.viewYSF = 1;
+  this.fitXSF = 1, this.fitYSF = 1;                     // scaling factor when content needs to be scaled to fit screen
 
   this.calculateSize(this.parent.div.id);               // sets all sizes, offsets, based on parent div size
   this.div = dom.addChildDiv({"id": mapDivId,"parent":containerDivId});
@@ -73,7 +73,7 @@ Map.prototype.aYC = function(neuron) {
 //-----------------------------
 // Map.rW, rH, rX, rY, rXC, rYC
 // - 
-// Calculate the co-ords based on %'s set in rendeiring scene'
+// Calculate the co-ords based on %'s set in rendering scene'
 //-----------------------------
 Map.prototype.rW = function(neuron) {
   return this.scaleX(this.renderingScene[neuron.id].width);
@@ -601,35 +601,84 @@ Map.prototype.render = function(neuron, callback) {
         });
       } else next();
     },
+    function(next) {      // find the outer points of the scene
+      async.each(self.renderingScene, function(neuron, nextNeuron) {
+        if (self.rX(neuron) < sceneLowestX) sceneLowestX = self.rX(neuron);
+        if (self.rX(neuron) + self.rW(neuron) > sceneGreatestX) sceneGreatestX = self.rX(neuron) + self.rW(neuron);
+        if (self.rY(neuron) < sceneLowestY) sceneLowestY = self.rY(neuron);
+        if (self.rY(neuron) + self.rH(neuron) > sceneGreatestY) sceneGreatestY = self.rY(neuron) + self.rH(neuron);
+        nextNeuron();
+      }, function() {    // calculate scaling factor for when content doesn't fit viewport
+        next();
+      });
+    },
     function(next) {  // check what neurons need to be moved
       if (self.activeNeuron !== null) {
-        // calculate difference between new active neuron's centre position in new scene and current scene
-        var sceneOffsetX = self.aXC(neuron) - self.rXC(neuron);
-        var sceneOffsetY = self.aYC(neuron) - self.rYC(neuron);
 
-        async.each(self.activeScene, function(neuron, nextNeuron) {
-          if (n.containsNeuron(self.renderingScene, neuron)) {   // if neuron exists in activeScene and renderingScene, it needs to be moved
+        // anchorOffsets are the difference between the new active neuron's centre position in new scene, and its centre in current scene
+        // used to 'anchor' the other neurons around the new active neuron before moving everything so that the new active is centred
+        var anchorOffsetX = self.aXC(neuron) - self.rXC(neuron);
+        var anchorOffsetY = self.aYC(neuron) - self.rYC(neuron);
+
+        // ALL OF THIS PERTAINS TO SCALING TO HALF OF SCREEN (OR NOT)
+
+        var renderWidth = self.width, renderHeight = self.height;
+        var contentWidth = self.width, contentHeight = self.height;
+        var xOrigin = 0, yOrigin = 0;
+        var xOffset = 0, yOffset = 0;
+
+        if (self.renderingNeuron.resource) {     // has resource so neurons will be plotted to fit half of the screen
+          contentWidth = sceneGreatestX - sceneLowestX;
+          contentHeight = sceneGreatestY - sceneLowestY;
+
+          if (self.viewMode == "landscape") {
+            renderWidth = (self.viewportWidth / 2);
+            xOrigin = -sceneLowestX;
+            if (contentWidth < renderWidth) xOffset = (renderWidth - contentWidth) / 2;
+          } else {    // portrait
+            renderHeight = (self.viewportHeight / 2);
+            yOrigin = -sceneLowestY;
+            if (contentHeight < renderHeight) yOffset = (renderHeight - contentHeight) / 2;
+          }
+        }
+
+        // calculate the mapping of for pixels ...
+        var xSF = 1;
+        if (contentWidth > renderWidth) {
+          xSF = (renderWidth - self.scaleX(8)) / contentWidth;
+          xOffset = self.scaleX(4);
+        }
+        var ySF = 1;
+        if (contentHeight > renderHeight) {
+          ySF = (renderHeight - self.scaleY(8)) / contentHeight;
+          yOffset = self.scaleY(4);
+        }
+
+        async.each(self.activeScene, function(neuron, nextNeuron) {   // iterate neurons in active scene
+          if (n.containsNeuron(self.renderingScene, neuron)) {        // if neuron also exists in renderingScene we need to calculate where to move it
+
+            // set anchorOffsets to account for any neurons which would go off the screen (applied to animation in next block)
+            if (self.rX(neuron) + anchorOffsetX < anchorLowestX) anchorLowestX = self.rX(neuron) + anchorOffsetX;
+            if (self.rX(neuron) + self.rW(neuron) + anchorOffsetX > anchorGreatestX) anchorGreatestX = self.rX(neuron) + self.rW(neuron) + anchorOffsetX;
+            if (self.rY(neuron) + anchorOffsetY < anchorLowestY) anchorLowestY = self.rY(neuron) + anchorOffsetY;
+            if (self.rY(neuron) + self.rH(neuron) + anchorOffsetY > anchorGreatestY) anchorGreatestY = self.rY(neuron) + self.rH(neuron) + anchorOffsetY;
+
             animations.anchor.push({
               id: neuron.id,
-              x: self.rX(neuron) + sceneOffsetX,
-              y: self.rY(neuron) + sceneOffsetY,
+              x: self.rX(neuron) + anchorOffsetX,
+              y: self.rY(neuron) + anchorOffsetY,
               width: self.rW(neuron),
               height: self.rH(neuron)
             });
-
-            // track any of the neurons which would go beyond the edge of the canvas, which will be used to offset when animating moves
-            if (self.rX(neuron) + sceneOffsetX < anchorLowestX) anchorLowestX = self.rX(neuron) + sceneOffsetX;
-            if (self.rX(neuron) + self.rW(neuron) + sceneOffsetX > anchorGreatestX) anchorGreatestX = self.rX(neuron) + self.rW(neuron) + sceneOffsetX;
-            if (self.rY(neuron) + sceneOffsetY < anchorLowestY) anchorLowestY = self.rY(neuron) + sceneOffsetY;
-            if (self.rY(neuron) + self.rH(neuron) + sceneOffsetY > anchorGreatestY) anchorGreatestY = self.rY(neuron) + self.rH(neuron) + sceneOffsetY;
 
             animations.move.push({
               id: neuron.id,
-              x: self.rX(neuron),
-              y: self.rY(neuron),
-              width: self.rW(neuron),
-              height: self.rH(neuron)
+              x: (xOrigin + xOffset + self.rX(neuron)) * xSF,
+              y: (yOrigin + yOffset + self.rY(neuron)) * ySF,
+              width: self.rW(neuron) * xSF,
+              height: self.rH(neuron) * xSF
             });
+
             nextNeuron();
           } else nextNeuron();
         },
@@ -638,60 +687,24 @@ Map.prototype.render = function(neuron, callback) {
         });
       } else next();
     },
-    function(next) {      // find the outer points of the scene
-      async.each(self.renderingScene, function(neuron, nextNeuron) {
-        if (self.rX(neuron) < sceneLowestX) sceneLowestX = self.rX(neuron);
-        if (self.rX(neuron) + self.rW(neuron) > sceneGreatestX) sceneGreatestX = self.rX(neuron) + self.rW(neuron);
-        if (self.rY(neuron) < sceneLowestY) sceneLowestY = self.rY(neuron);
-        if (self.rY(neuron) + self.rH(neuron) > sceneGreatestY) sceneGreatestY = self.rY(neuron) + self.rH(neuron);
-        nextNeuron();
-      }, function() {    // calculate scaling factor based on whether the current active node has a resource, page orentiation... etc
-
-        var width = self.viewportWidth;
-        var height = self.viewportHeight;
-
-        if (self.renderingNeuron.resource) {  // rendering neuron has a resource
-          if (self.viewMode == "landscape") width = width / 2; 
-          else height = height / 2;
-        }
-
-        var xDiff = sceneGreatestX - sceneLowestX;
-        var yDiff = sceneGreatestY - sceneLowestY;
-        var xSF, ySF;             // scaling factor vars
-
-        if (xDiff > width) {      // neurons are wider than space, so we need to scale it down
-          xSF = width / xDiff;
-          console.log("xscalingfactor: " + xSF);
-        }
-
-        if (yDiff > height) {
-          ySF = height / yDiff;
-          console.log("yscalingfactor: " + ySF);
-        }
-      });
-
-
-      next();
-    },
     function(next) {  // move ancestors to new sizes and positions relative to new active neuron
       if (animations.anchor.length > 0) {
-        var anchorOffsetX = 0, anchorOffsetY = 0;
+        var offsetX = 0, offsetY = 0;
         // apply anchor offsets to prevent rects going off screen
-        if (anchorLowestX < 0) anchorOffsetX = -anchorLowestX + self.scaleX(4);
-        if (anchorGreatestX > self.viewportWidth) anchorOffsetX = (self.viewportWidth - anchorGreatestX) - self.scaleX(4);
-        if (anchorLowestY < 0) anchorOffsetY = -anchorLowestY + self.scaleY(4);
-        if (anchorGreatestY > self.viewportHeight) anchorOffsetY = (self.viewportHeight - anchorGreatestY) - self.scaleY(4);
+        if (anchorLowestX < 0) offsetX = -anchorLowestX + self.scaleX(4);
+        if (anchorGreatestX > self.viewportWidth) offsetX = (self.viewportWidth - anchorGreatestX) - self.scaleX(4);
+        if (anchorLowestY < 0) offsetY = -anchorLowestY + self.scaleY(4);
+        if (anchorGreatestY > self.viewportHeight) offsetY = (self.viewportHeight - anchorGreatestY) - self.scaleY(4);
 
-        self.animateMove(animations.anchor, anchorOffsetX, anchorOffsetY, function() {
+        self.animateMove(animations.anchor, offsetX, offsetY, function() {
           next();
         });
       } else next();
     },
     function(next) {  // move whole structure to new position (new scene)
       if (animations.move.length > 0) {
-        var moveOffsetX = 0;
-        var moveOffsetY = 0;
-        self.animateMove(animations.move, moveOffsetX, moveOffsetY, function() {
+        var offsetX = 0, offsetY = 0;
+        self.animateMove(animations.move, offsetX, offsetY, function() {
           next();
         });
       } else next();
