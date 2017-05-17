@@ -52,7 +52,7 @@ View.prototype.hide = function(callback) {
       if (callback) callback();
     }
     else div.style.opacity -= 0.1;
-  }, 50);
+  }, 20);
 };
 
 View.prototype.render = function(neuron) {
@@ -172,6 +172,7 @@ View.prototype.render = function(neuron) {
 View.prototype.show = function() {
   var self = this;
   var div = this.div;
+  self.visible = true;
   if (!div.style.opacity) {
     div.style.opacity = 0;
   }
@@ -179,7 +180,6 @@ View.prototype.show = function() {
 
   var fadeInEffect = setInterval(function() {
     if (div.style.opacity >= 1) {
-      self.visible = true;
       clearInterval(fadeInEffect);
     } else {
       div.style.opacity = parseFloat(div.style.opacity) + 0.1;

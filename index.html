@@ -70,12 +70,12 @@
               "resource": [
                 {"qblock": {
                     "qtitle": "Integrate the following:",
-                    "atitle": "Answers:",
+                    "atitle": "Answers",
                     "qs": [
-                      {"latex": "\\displaystyle \\int x^2 dx"},
-                      {"latex": "\\displaystyle \\int x^3 dx"},
-                      {"latex": "\\displaystyle \\int \\frac{1}{5}x^6 dx"},
-                      {"latex": "\\displaystyle \\int (x+2)^2 dx"}
+                      {"latex": "\\displaystyle \\int x^2 \\; dx"},
+                      {"latex": "\\displaystyle \\int x^3 \\; dx"},
+                      {"latex": "\\displaystyle \\int \\frac{1}{5}x^6 \\; dx"},
+                      {"latex": "\\displaystyle \\int (x+2)^2 \\; dx"}
                     ],
                     "as": [
                       {"latex": "\\displaystyle \\frac{x^3}{3} + c"},
@@ -96,8 +96,21 @@
               "style": "neuron_1",
               "parent_id": "1-1",
               "resource": [
-                "some text",
-                {"latex": "e = mc^2"}
+                {"qblock": {
+                    "qtitle": "Integrate the following:",
+                    "atitle": "Answers",
+                    "qs": [
+                      {"latex": "\\displaystyle \\int x^{-2} \\; dx"},
+                      {"latex": "\\displaystyle \\int 3x^{-7} \\; dx"},
+                      {"latex": "\\displaystyle \\int \\frac{1}{2}x^{-1} \\; dx"}
+                    ],
+                    "as": [
+                      {"latex": "\\displaystyle \\frac{x^{-1}}{-1} + c = -\\frac{1}{x} + c"},
+                      {"latex": "\\displaystyle \\frac{x^{-6}}{-2} + c = -\\frac{1}{2x^6} + c"},
+                      {"latex": "\\displaystyle \\frac{1}{2} \\ln{(x)} + c"}
+                    ]
+                  }
+                }
               ]
             },
             "1-1-3": {
@@ -109,8 +122,31 @@
               "style": "neuron_1",
               "parent_id": "1-1",
               "resource": [
-                "some text",
-                {"latex": "e = mc^2"}
+                {"qblock": {
+                    "qtitle": "Integrate the following:",
+                    "atitle": "Answers",
+                    "qs": [
+                      {"latex": "\\displaystyle \\int x^{\\frac{1}{2}} \\; dx"},
+                      {"latex": "\\displaystyle \\int t^{\\frac{1}{3}} \\; dx"},
+                      {"latex": "\\displaystyle \\int x^{\\frac{2}{3}} \\; dx"},
+                      {"latex": "\\displaystyle \\int x^{-\\frac{1}{2}} \\; dx"},
+                      {"latex": "\\displaystyle \\int x^{-\\frac{4}{5}} \\; dx"},
+                      {"latex": "\\displaystyle \\int \\frac{1}{t^\\frac{3}{2}} \\; dt"},
+                      {"latex": "\\displaystyle \\int \\frac{1}{\\sqrt {t}} \\; dt"},
+                      {"latex": "\\displaystyle \\int \\frac{4}{7} x^{-\\frac{2}{5}} \\; dx"}
+                    ],
+                    "as": [
+                      {"latex": "*** insert answer ***"},
+                      {"latex": "*** insert answer ***"},
+                      {"latex": "*** insert answer ***"},
+                      {"latex": "*** insert answer ***"},
+                      {"latex": "*** insert answer ***"},
+                      {"latex": "*** insert answer ***"},
+                      {"latex": "*** insert answer ***"},
+                      {"latex": "*** insert answer ***"},
+                    ]
+                  }
+                }
               ]
             },
             "1-1-4": {
@@ -121,8 +157,33 @@
               "style": "neuron_1",
               "parent_id": "1-1",
               "resource": [
-                "some text",
-                {"latex": "e = mc^2"}
+                {"qblock": {
+                    "qtitle": "Integrate the following:",
+                    "atitle": "Answers",
+                    "qs": [
+                      {"latex": "\\displaystyle \\int \\sin{(x)} \\; dx"},
+                      {"latex": "\\displaystyle \\int \\cos{(x)} \\; dx"},
+                      {"latex": "\\displaystyle \\int \\tan{(t)} \\; dt"},
+                      {"latex": "\\displaystyle \\int \\csc{(x)} \\; dx"},
+                      {"latex": "\\displaystyle \\int \\sec{(x)} \\; dx"},
+                      {"latex": "\\displaystyle \\int \\cot{(x)} \\; dx"},
+                      {"latex": "\\displaystyle \\int \\sec^2{(t)} \\; dt"},
+                      {"latex": "\\displaystyle \\int \\sin{(2x)} \\; dx"},
+                      {"latex": "\\displaystyle \\int \\cos{(ax)} \\; dx"}
+                    ],
+                    "as": [
+                      {"latex": "*** insert answer ***"},
+                      {"latex": "*** insert answer ***"},
+                      {"latex": "*** insert answer ***"},
+                      {"latex": "need to research this one *** insert answer ***"},
+                      {"latex": "*** insert answer ***"},
+                      {"latex": "*** insert answer ***"},
+                      {"latex": "*** insert answer ***"},
+                      {"latex": "*** insert answer ***"},
+                      {"latex": "*** insert answer ***"}
+                    ]
+                  }
+                }
               ]
             },
             "1-1-5": {
@@ -133,20 +194,42 @@
               "style": "neuron_1",
               "parent_id": "1-1",
               "resource": [
-                "some text",
-                {"latex": "e = mc^2"}
+                {"qblock": {
+                    "qtitle": "Integrate the following:",
+                    "atitle": "Answers",
+                    "qs": [],
+                    "as": []
+                  }
+                }
               ]
             },
             "1-1-6": {
               "title": [
-                "Logarithmic",
-                "functions"
+                "Functions of type",
+                {"latex": "\\frac{k}{ax+b}"}
               ],
               "style": "neuron_1",
               "parent_id": "1-1",
               "resource": [
-                "some text",
-                {"latex": "e = mc^2"}
+                {"qblock": {
+                    "qtitle": "Integrate the following:",
+                    "atitle": "Answers",
+                    "qs": [
+                      {"latex": "\\displaystyle \\int \\frac{1}{x} \\; dx"},
+                      {"latex": "\\displaystyle \\int \\frac{1}{2t} \\; dt"},
+                      {"latex": "\\displaystyle \\int \\frac{3}{4x} \\; dx"},
+                      {"latex": "\\displaystyle \\int \\frac{1}{x+1} \\; dx"},
+                      {"latex": "\\displaystyle \\int \\frac{2}{3t-5} \\; dt"}
+                    ],
+                    "as": [
+                      "*** insert answer ***",
+                      "*** insert answer ***",
+                      "*** insert answer ***",
+                      "*** insert answer ***",
+                      "*** insert answer ***",
+                    ]
+                  }
+                }
               ]
             },
             "1-2": {

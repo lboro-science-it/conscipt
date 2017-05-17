@@ -43,17 +43,18 @@ module.exports = function(config) {
 
         n.calculateScene(neuron, sceneConfig, function() {
           
-          if (view.visible) {
+          var mapRenderView = true;     // map only has to render view if there wasn't already a view drawn
+          if (view.visible) {           // if a view is already visible then we only render new view once it's hidden
+            mapRenderView = false;
             view.hide(function() {
-              view.clear();
+              view.clear(function() {
+                if (neuron.resource) view.render(neuron);
+              });
             });
           }
 
           map.render(neuron, function() {
-            if (neuron.resource && !view.visible) {
-              console.log("about to call view render from in map render block");
-              view.render(neuron);
-            }
+            if (neuron.resource && mapRenderView) view.render(neuron);
           });
       
           // todo: responsive type modes -> if screen is wider, resource goes to side of map; if taller, resource goes under map.
