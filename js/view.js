@@ -37,7 +37,7 @@ View.prototype.clear = function(callback) {
   while(this.div.firstChild) {
     this.div.removeChild(this.div.firstChild);
   }
-  callback();
+  if (callback) callback();
 };
 
 View.prototype.hide = function(callback) {
@@ -45,11 +45,11 @@ View.prototype.hide = function(callback) {
   var div = this.div;
   var fadeOutEffect = setInterval(function() {
     if (!div.style.opacity) div.style.opacity = 1;
-    if (div.style.opacity == 0) {
+    if (div.style.opacity <= 0) {
       clearInterval(fadeOutEffect);
       div.style.visibility = "hidden";
       self.visible = false;
-      callback();
+      if (callback) callback();
     }
     else div.style.opacity -= 0.1;
   }, 50);
@@ -178,11 +178,10 @@ View.prototype.show = function() {
   div.style.visibility = "";
 
   var fadeInEffect = setInterval(function() {
-    if (div.style.opacity == 1) {
+    if (div.style.opacity >= 1) {
       self.visible = true;
       clearInterval(fadeInEffect);
     } else {
-      div.style.display = "block";
       div.style.opacity = parseFloat(div.style.opacity) + 0.1;
     }
   }, 50);

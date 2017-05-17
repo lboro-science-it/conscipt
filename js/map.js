@@ -470,7 +470,6 @@ Map.prototype.calculateSize = function(containerDivId) {
 
   this.viewportWidth = containerDiv.offsetWidth;    // viewportHeight and viewportWidth - make entire viewport a raphael canvas
   this.viewportHeight = containerDiv.offsetHeight;
-  console.log(this.viewportWidth + ", " + this.viewportHeight);
 
   if (((containerDiv.offsetWidth / 16) * 9) > containerDiv.offsetHeight) {  // if wider than 16:9 ratio, calculate width based on height
     this.height = containerDiv.offsetHeight;

@@ -146,18 +146,17 @@ module.exports = function(config) {
 
         n.calculateScene(neuron, sceneConfig, function() {
           
-          var canRenderView = false;
-
           if (view.visible) {
             view.hide(function() {
-              view.clear(function() {
-                canRenderView = true;
-              });
+              view.clear();
             });
           }
 
           map.render(neuron, function() {
-            if (neuron.resource) view.render(neuron);
+            if (neuron.resource && !view.visible) {
+              console.log("about to call view render from in map render block");
+              view.render(neuron);
+            }
           });
       
           // todo: responsive type modes -> if screen is wider, resource goes to side of map; if taller, resource goes under map.
@@ -729,7 +728,6 @@ Map.prototype.calculateSize = function(containerDivId) {
 
   this.viewportWidth = containerDiv.offsetWidth;    // viewportHeight and viewportWidth - make entire viewport a raphael canvas
   this.viewportHeight = containerDiv.offsetHeight;
-  console.log(this.viewportWidth + ", " + this.viewportHeight);
 
   if (((containerDiv.offsetWidth / 16) * 9) > containerDiv.offsetHeight) {  // if wider than 16:9 ratio, calculate width based on height
     this.height = containerDiv.offsetHeight;
@@ -1296,7 +1294,7 @@ View.prototype.clear = function(callback) {
   while(this.div.firstChild) {
     this.div.removeChild(this.div.firstChild);
   }
-  callback();
+  if (callback) callback();
 };
 
 View.prototype.hide = function(callback) {
@@ -1304,11 +1302,11 @@ View.prototype.hide = function(callback) {
   var div = this.div;
   var fadeOutEffect = setInterval(function() {
     if (!div.style.opacity) div.style.opacity = 1;
-    if (div.style.opacity == 0) {
+    if (div.style.opacity <= 0) {
       clearInterval(fadeOutEffect);
       div.style.visibility = "hidden";
       self.visible = false;
-      callback();
+      if (callback) callback();
     }
     else div.style.opacity -= 0.1;
   }, 50);
@@ -1437,11 +1435,10 @@ View.prototype.show = function() {
   div.style.visibility = "";
 
   var fadeInEffect = setInterval(function() {
-    if (div.style.opacity == 1) {
+    if (div.style.opacity >= 1) {
       self.visible = true;
       clearInterval(fadeInEffect);
     } else {
-      div.style.display = "block";
       div.style.opacity = parseFloat(div.style.opacity) + 0.1;
     }
   }, 50);
