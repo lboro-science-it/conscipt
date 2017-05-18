@@ -138,13 +138,12 @@ View.prototype.render = function(neuron) {
             }
 
             qPart.addEventListener('click', function() {      // activate neuron's scene on click
-              console.log("qRow was clicked!");
               var aPart = document.getElementById(this.getAttribute('a-part'));
 
               aPart.style.visibility = "";
               aPart.style.opacity = 0;
               var fadeIn = setInterval(function() {
-                if (aPart.style.opacity == 1) {
+                if (aPart.style.opacity >= 1) {
                   clearInterval(fadeIn);
                 } else {
                   aPart.style.opacity = parseFloat(aPart.style.opacity) + 0.1;

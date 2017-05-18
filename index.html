@@ -75,12 +75,22 @@
                       {"latex": "\\displaystyle \\int x^2 \\; dx"},
                       {"latex": "\\displaystyle \\int x^3 \\; dx"},
                       {"latex": "\\displaystyle \\int \\frac{1}{5}x^6 \\; dx"},
+                      {"latex": "\\displaystyle \\int \\; dx"},
+                      {"latex": "\\displaystyle \\int \\; 5dt"},
+                      {"latex": "\\displaystyle \\int t \\; dt"},
+                      {"latex": "\\displaystyle \\int 2x^{10} \\; dx"},
+                      {"latex": "\\displaystyle \\int 4x^2 + 7x + 4 \\; dx"},
                       {"latex": "\\displaystyle \\int (x+2)^2 \\; dx"}
                     ],
                     "as": [
                       {"latex": "\\displaystyle \\frac{x^3}{3} + c"},
                       {"latex": "\\displaystyle \\frac{x^4}{4} + c"},
                       {"latex": "\\displaystyle \\frac{1}{35} x^7 + c"},
+                      {"latex": "\\displaystyle x + c"},
+                      {"latex": "\\displaystyle 5t + c"},
+                      {"latex": "\\displaystyle \\frac{t^2}{2} + c"},
+                      {"latex": "\\displaystyle \\frac{2x^{11}}{11} + c"},
+                      {"latex": "\\displaystyle \\frac{4}{3}x^3 + \\frac{7}{2}x^2 + 4x + c"},
                       {"latex": "\\displaystyle \\frac{x^3}{3} + 2x^2 + 4x + c"}
                     ]
                   }
@@ -102,12 +112,16 @@
                     "qs": [
                       {"latex": "\\displaystyle \\int x^{-2} \\; dx"},
                       {"latex": "\\displaystyle \\int 3x^{-7} \\; dx"},
-                      {"latex": "\\displaystyle \\int \\frac{1}{2}x^{-1} \\; dx"}
+                      {"latex": "\\displaystyle \\int \\frac{1}{2}x^{-1} \\; dx"},
+                      {"latex": "\\displaystyle \\int \\frac{1}{t^3} \\; dt"},
+                      {"latex": "\\displaystyle \\int \\frac{2}{x^4} \\; dx"}
                     ],
                     "as": [
                       {"latex": "\\displaystyle \\frac{x^{-1}}{-1} + c = -\\frac{1}{x} + c"},
                       {"latex": "\\displaystyle \\frac{x^{-6}}{-2} + c = -\\frac{1}{2x^6} + c"},
-                      {"latex": "\\displaystyle \\frac{1}{2} \\ln{(x)} + c"}
+                      {"latex": "\\displaystyle \\frac{1}{2} \\ln{(x)} + c"},
+                      {"latex": "\\displaystyle \\frac{t^{-2}}{-2} + c = -\\frac{1}{2t^2} + c"},
+                      {"latex": "\\displaystyle \\frac{2x^{-3}}{-3} + c = -\\frac{2}{3x^3} + c"}
                     ]
                   }
                 }
@@ -136,14 +150,14 @@
                       {"latex": "\\displaystyle \\int \\frac{4}{7} x^{-\\frac{2}{5}} \\; dx"}
                     ],
                     "as": [
-                      {"latex": "*** insert answer ***"},
-                      {"latex": "*** insert answer ***"},
-                      {"latex": "*** insert answer ***"},
-                      {"latex": "*** insert answer ***"},
-                      {"latex": "*** insert answer ***"},
-                      {"latex": "*** insert answer ***"},
-                      {"latex": "*** insert answer ***"},
-                      {"latex": "*** insert answer ***"},
+                      {"latex": "\\displaystyle \\frac{2}{3} x^{\\frac{3}{2}} + c"},
+                      {"latex": "\\displaystyle \\frac{3t}{4}^{\\frac{4}{3}} + c"},
+                      {"latex": "\\displaystyle \\frac{3}{5}x^{\\frac{5}{3}} + c"},
+                      {"latex": "\\displaystyle 2x^{\\frac{1}{2}} + c"},
+                      {"latex": "\\displaystyle 5c^{\\frac{1}{5}} + c"},
+                      {"latex": "\\displaystyle -2t^{-\\frac{1}{2}} + c = -\\frac{2}{t^{\\frac{1}{2}}} + c"},
+                      {"latex": "\\displaystyle 2t^{\\frac{1}{2}} + c = 2\\sqrt{t} + c"},
+                      {"latex": "\\displaystyle \\frac{20}{21} x^{\\frac{3}{5}} + c"},
                     ]
                   }
                 }
@@ -293,7 +307,7 @@
               "title": [
                 "Integration",              // LaTeX here
                 "by parts:",
-                {"latex": "\\int{udv}=uv-\\int{vdu}"}
+                {"latex": "\\displaystyle \\int{udv}=uv-\\int{vdu}"}
               ],
               "style": "neuron_3",
               "parent_id": "1"

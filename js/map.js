@@ -133,7 +133,16 @@ Map.prototype.animateAddConnector = function(neuron, callback) {
     var toX = this.rXC(neuron);
     var toY = this.rYC(neuron);
 
-    this.activeScene[neuron.id].connector = this.canvas.path("M" + fromX + " " + fromY)
+    var initPathStruct = [        // directly creating the pathStruct means raphael doesn't have to
+      ['M', fromX, fromY]
+    ];
+    var finalPathStruct = [
+      ['M', fromX, fromY],
+      ['L', toX, toY]
+    ];
+
+
+    this.activeScene[neuron.id].connector = this.canvas.path(initPathStruct)
     .attr({
       "stroke": border,
       "stroke-width": borderWidth,
@@ -141,7 +150,7 @@ Map.prototype.animateAddConnector = function(neuron, callback) {
     })
     .toBack();
     this.activeScene[neuron.id].connector.animate({
-      path: "M" + fromX + ", " + fromY + "L" + toX + ", " + toY
+      path: finalPathStruct
     }, self.parent.config.animations.add.duration, function() {
       this[0].style["stroke-dasharray"] = this.getTotalLength() + "px";
       this[0].style["stroke-dashoffset"] = "0px";
@@ -296,12 +305,15 @@ Map.prototype.animateMoveConnector = function(neuronAnimation, parentAnimation, 
     var toX = neuronAnimation.x + neuronAnimation.width / 2 + offsetX;
     var toY = neuronAnimation.y + neuronAnimation.height / 2 + offsetY;
 
-    var path = "M" + fromX + ", " + fromY + "L" + toX + ", " + toY;
+    var pathStruct = [
+      ['M', fromX, fromY],
+      ['L', toX, toY]
+    ];
 
     neuron.connector[0].style["stroke-dasharray"] = "9999px";       // ensures whole line is drawn when 'growing' lines
 
     neuron.connector.animate({
-      path: path
+      path: pathStruct
     }, self.parent.config.animations[animConfig].duration, function() {        // once completed update this so can be animated out properly
       this[0].style["stroke-dasharray"] = this.getTotalLength() + "px";
     });
