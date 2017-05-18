@@ -408,7 +408,7 @@ Map.prototype.animateRemoveConnector = function(neuron, callback) {
     var connector = this.activeScene[neuron.id].connector;
     var pathLength = connector.getTotalLength();
 
-    connector.attr({"width": 0});       // we will use the unused width attr to calculate the stroke-dasharray when we animate it
+    connector.node.setAttribute("width", 0);       // we will use the unused width attr to calculate the stroke-dasharray when we animate it
 
     eve.on('raphael.anim.frame.' + connector.id, onAnimate = function(i) {
       connector[0].style["stroke-dashoffset"] = connector.attrs.width * pathLength + "px";       // the raphael dummy elem will fade its opacity, div matches
@@ -567,11 +567,12 @@ Map.prototype.raphOnClickActivate = function(raphaelObj, neuron) {
     self.parent.activate(self.getNeuron(this.data("neuronId")));
   })
   .hover(function() {
-    this.attr({"cursor": "pointer"});
+    this.node.setAttribute("cursor", "pointer");
   }, function() {
-    this.attr({"cursor": "normal"});
+    this.node.setAttribute("cursor", "normal");
   });
 };
+
 
 //------------------------
 // Map.render(scene, neuron)
