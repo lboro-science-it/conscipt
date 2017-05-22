@@ -494,6 +494,9 @@ Map.prototype.animateAddTitle = function(neuron) {
         }
       });
 
+      latexElem.setAttribute("neuron-id", neuron.id);   // stuff to enable us to access the raph elem from the div
+      latexElem.setAttribute("title-row", index);       // on move, we then only need to create a single event and within that, iterate all necessary divs
+
       latexElem.innerHTML = katex.renderToString(customContent);
       latexElem.addEventListener('click', function() {      // activate neuron's scene on click
         self.parent.activate(self.getNeuron(neuron.id));
@@ -600,14 +603,13 @@ Map.prototype.animateMoveTitle = function(neuronAnimation, offsetX, offsetY, ani
   x = neuronAnimation.x + offsetX + (neuronAnimation.width / 2);  // raphael x for text elem is always mid point of rect
 
   async.eachOf(neuron.title, function(row, index, nextRow) {      // iterate neuron.title[] - raphael text elem for each row of title
-    var hasLatex = (typeof row.div !== 'undefined');    
-    if (hasLatex) {                                               // latex = HTML elems which need to be animated in sync with dummy raphael elem
-      eve.on('raphael.anim.frame.' + row.text.id, onAnimate = function(i) {
+    if (row.div) {                                                // latex = HTML elems which need to be animated in sync with dummy raphael elem
+    /*  eve.on('raphael.anim.frame.' + row.text.id, onAnimate = function(i) {     // create just a single event to move all divs
         row.div.style.fontSize = this.attrs["font-size"] + "px";
         row.div.style.opacity = this.attrs.opacity;
         row.div.style.left = (this.attrs.x - row.div.offsetWidth / 2) + "px";   // div positioning account for the fact the raphael elem is centre anchored
         row.div.style.top = (this.attrs.y - row.div.offsetHeight / 2) + "px";
-      });
+      });*/
     }
 
     if (neuron.role == "zii") {                                   // neurons with role "zii" get hidden
@@ -622,6 +624,36 @@ Map.prototype.animateMoveTitle = function(neuronAnimation, offsetX, offsetY, ani
       opacity = 1;
     }
 
+    if (row.div) {
+      var fontSizeDiff = (parseFloat(row.div.style.fontSize) - fontSize) / 30;
+      var opacityDiff = (row.div.style.opacity - opacity) / 30;
+
+      var startX = parseFloat(row.div.style.left);
+      var endX = x - row.div.offsetWidth / 2;
+      var startY = parseFloat(row.div.style.top);
+      var endY = y - row.div.offsetHeight / 2;
+
+      var start = null;
+
+      function moveLatexStep(timestamp) {
+        if (!start) start = timestamp;
+        var progress = timestamp - start;
+        if (progress < self.parent.config.animations[animConfig].duration) {
+          var percentLeft = 100 - (progress / self.parent.config.animations[animConfig].duration * 100);
+          console.log("percent left: " + percentLeft);
+          var currentX = endX + ((startX - endX) * percentLeft) / 100;
+          var currentY = endY + ((startY - endY) * percentLeft) / 100;
+
+          row.div.style.left = currentX + "px";
+          row.div.style.top = currentY + "px";
+
+          window.requestAnimationFrame(moveLatexStep);
+        }
+      };
+
+      window.requestAnimationFrame(moveLatexStep);
+
+    }
     row.text.animate({
       "x": x,
       "y": y,
