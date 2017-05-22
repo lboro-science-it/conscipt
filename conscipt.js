@@ -524,31 +524,118 @@ Map.prototype.animateAddTitle = function(neuron) {
   });
 };
 
+Map.prototype.animateAnchor = function(animations, offsetX, offsetY, callback) {
+  var self = this;
+
+  async.each(animations, function(animation, next) {
+    var neuron = self.activeScene[animation.id];
+    self.activeScene[animation.id].role = self.renderingScene[animation.id].role;   // update role of neuron in activeScene
+
+    self.animateAnchorTitle(animation, offsetX, offsetY);
+    if (self.activeScene[neuron.parent]) {
+      var parentAnimation = getAnimationByNeuronId(animations, neuron.parent);
+      self.animateMoveConnector(animation, parentAnimation, offsetX, offsetY, "anchor");
+    }
+    self.animateMoveRect(animation, offsetX, offsetY, "anchor");
+    next();
+  }, function() {
+    setTimeout(function() {
+      if (callback) callback();
+    }, self.parent.config.animations.anchor.duration);
+  });
+};
+
+Map.prototype.animateAnchorTitle = function(neuronAnimation, offsetX, offsetY, animConfig) {
+  var self = this;
+  var neuron = this.activeScene[neuronAnimation.id];
+
+  var toX = neuronAnimation.x + offsetX + (neuronAnimation.width / 2);    
+
+  async.eachOf(neuron.title, function(row, index, nextRow) {
+    var toY, fontSize, opacity;
+    if (neuron.role == "zii") {
+      opacity = 0;
+      fontSize = 0;
+      toY = neuronAnimation.y + offsetY + (neuronAnimation.height / 2);
+    } else {
+      var lineHeight = (neuronAnimation.height / neuron.title.length) - 1;
+      toY = (neuronAnimation.y + (index * lineHeight) + 0.5 + (lineHeight / 2)) + offsetY;
+      fontSize = lineHeight / 2;
+      opacity = 1;
+    }
+
+    if (row.div) {
+      var fontSizeDiff = parseFloat(row.div.style.fontSize) - fontSize;     // difference between starting and target font size
+      var opacityDiff = row.div.style.opacity - opacity;                    // diff between starting and target opacity
+
+      var fromX = parseFloat(row.div.style.left) + row.div.offsetWidth / 2;
+      var fromY = parseFloat(row.div.style.top) + row.div.offsetHeight / 2;
+
+      var start = null;
+      var duration = self.parent.config.animations.anchor.duration;
+
+      function anchorLatexStep(timestamp) {
+        if (!start) start = timestamp;
+        var progress = timestamp - start;
+        if (progress < duration) {
+          var percentRemaining = 1 - (progress / duration);
+
+          row.div.style.fontSize = fontSize + (fontSizeDiff * percentRemaining) + "px";
+          row.div.style.opacity = opacity + (opacityDiff * percentRemaining);
+
+          var currentX = toX + ((fromX - toX) * percentRemaining);
+          var currentY = toY + ((fromY - toY) * percentRemaining);
+
+          row.div.style.left = currentX - (row.div.offsetWidth / 2) + "px";
+          row.div.style.top = currentY - (row.div.offsetHeight / 2) + "px";
+
+          window.requestAnimationFrame(anchorLatexStep);
+        } else {
+          row.div.style.fontSize = fontSize + "px";
+          row.div.style.opacity = opacity;
+          row.div.style.left = toX - row.div.offsetWidth / 2;
+          row.div.style.top = toY - row.div.offsetHeight / 2;
+        }
+      }
+
+      window.requestAnimationFrame(anchorLatexStep);
+    }
+    row.text.animate({
+      "x": toX,
+      "y": toY,
+      "font-size": fontSize,
+      "opacity": opacity
+    }, self.parent.config.animations.anchor.duration, "linear");
+    nextRow();
+  });
+
+};
+
 //---------------------------
-// Map.animateMove(animations, callback, iteration)
+// Map.animateMove(animations, callback)
 // -
 // Works through neurons, an object of animation attributes, and after the last one, calls callback
 //---------------------------
-Map.prototype.animateMove = function(animations, offsetX, offsetY, animConfig, callback, iteration) {
+Map.prototype.animateMove = function(animations, offsetX, offsetY, callback) {
   var self = this;
-  if (!iteration) var iteration = 0;
 
-  var neuronAnimation = animations[iteration];                  // animation object, containing co-ords etc
-  var neuron = this.activeScene[neuronAnimation.id];            // actual neuron object that is being dealt with
-  this.activeScene[neuronAnimation.id].role = this.renderingScene[neuronAnimation.id].role;
+  async.each(animations, function(animation, next) {
+    var neuron = self.activeScene[animation.id];
+    self.activeScene[animation.id].role = self.renderingScene[animation.id].role;
 
-  this.animateMoveTitle(neuronAnimation, offsetX, offsetY, animConfig);
-  if (this.activeScene[neuron.parent]) { // if neuron parent is in scene we need to animate connector
-    var parentAnimation = getAnimationByNeuronId(animations, neuron.parent);  // we need parent animation in order to do this.
-    this.animateMoveConnector(neuronAnimation, parentAnimation, offsetX, offsetY, animConfig);
-  }
-  this.animateMoveRect(neuronAnimation, offsetX, offsetY, animConfig, function() {
-    if (iteration + 1 == animations.length && callback) callback(); // callback only called after final rect is animated
+    self.animateMoveTitle(animation, offsetX, offsetY);
+    if (self.activeScene[neuron.parent]) {
+      var parentAnimation = getAnimationByNeuronId(animations, neuron.parent);
+      self.animateMoveConnector(animation, parentAnimation, offsetX, offsetY, "move");
+    }
+    self.animateMoveRect(animation, offsetX, offsetY, "move");
+
+    next();
+  }, function() {
+    setTimeout(function() {
+      if (callback) callback();
+    }, self.parent.config.animations.move.duration);
   });
-
-  if (iteration + 1 < animations.length) {                      // animate next if there are still iteratons to go
-    this.animateMove(animations, offsetX, offsetY, animConfig, callback, iteration + 1);
-  }
 };
 
 //-----------------------------
@@ -559,9 +646,8 @@ Map.prototype.animateMove = function(animations, offsetX, offsetY, animConfig, c
 Map.prototype.animateMoveConnector = function(neuronAnimation, parentAnimation, offsetX, offsetY, animConfig) {
   var self = this;
   var neuron = this.activeScene[neuronAnimation.id];
-  var hasConnector = (neuron.connector);
 
-  if (hasConnector) {   // only try and animate connector if it definitely exists
+  if (neuron.connector) {   // only try and animate connector if it definitely exists
     var fromX = parentAnimation.x + parentAnimation.width / 2 + offsetX;
     var fromY = parentAnimation.y + parentAnimation.height / 2 + offsetY;
     var toX = neuronAnimation.x + neuronAnimation.width / 2 + offsetX;
@@ -595,77 +681,71 @@ Map.prototype.animateMoveRect = function(neuronAnimation, offsetX, offsetY, anim
   });
 };
 
-Map.prototype.animateMoveTitle = function(neuronAnimation, offsetX, offsetY, animConfig) {
+
+
+Map.prototype.animateMoveTitle = function(neuronAnimation, offsetX, offsetY) {
   var self = this;
   var neuron = this.activeScene[neuronAnimation.id];              // object through which to access raphael text elems etc
-  var x, y, fontSize, opacity;                                    // these are the only things we need to animate for titles
   
-  x = neuronAnimation.x + offsetX + (neuronAnimation.width / 2);  // raphael x for text elem is always mid point of rect
+  var toX = neuronAnimation.x + offsetX + (neuronAnimation.width / 2);  // raphael x for text elem is always mid point of rect
 
   async.eachOf(neuron.title, function(row, index, nextRow) {      // iterate neuron.title[] - raphael text elem for each row of title
-    if (row.div) {                                                // latex = HTML elems which need to be animated in sync with dummy raphael elem
-    /*  eve.on('raphael.anim.frame.' + row.text.id, onAnimate = function(i) {     // create just a single event to move all divs
-        row.div.style.fontSize = this.attrs["font-size"] + "px";
-        row.div.style.opacity = this.attrs.opacity;
-        row.div.style.left = (this.attrs.x - row.div.offsetWidth / 2) + "px";   // div positioning account for the fact the raphael elem is centre anchored
-        row.div.style.top = (this.attrs.y - row.div.offsetHeight / 2) + "px";
-      });*/
-    }
-
+    var toY;
     if (neuron.role == "zii") {                                   // neurons with role "zii" get hidden
-      opacity = 0;
-      fontSize = 0;
-      y = neuronAnimation.y + offsetY + (neuronAnimation.height / 2);
+      toY = neuronAnimation.y + offsetY + (neuronAnimation.height / 2);
       // todo: set up here so that on hover the title shows
     } else {                                                      // other neuron roles get title animated with rect
       var lineHeight = (neuronAnimation.height / neuron.title.length) - 1;                  // 1 = padding, as neuron height = its lineHeight * number of title rows + 1
-      y = (neuronAnimation.y + (index * lineHeight) + 0.5 + (lineHeight / 2)) + offsetY;    // y = top of rect + multiple lineHeights + half of padding + middle of line point + offset
-      fontSize = lineHeight / 2;
-      opacity = 1;
+      toY = (neuronAnimation.y + (index * lineHeight) + 0.5 + (lineHeight / 2)) + offsetY;    // y = top of rect + multiple lineHeights + half of padding + middle of line point + offset
     }
 
     if (row.div) {
-      var fontSizeDiff = (parseFloat(row.div.style.fontSize) - fontSize) / 30;
-      var opacityDiff = (row.div.style.opacity - opacity) / 30;
-
-      var startX = parseFloat(row.div.style.left);
-      var endX = x - row.div.offsetWidth / 2;
-      var startY = parseFloat(row.div.style.top);
-      var endY = y - row.div.offsetHeight / 2;
-
       var start = null;
+      var duration = self.parent.config.animations.move.duration;
+
+      var fromX = parseFloat(row.div.style.left) + row.div.offsetWidth / 2;
+      var fromY = parseFloat(row.div.style.top) + row.div.offsetHeight / 2;
 
       function moveLatexStep(timestamp) {
         if (!start) start = timestamp;
         var progress = timestamp - start;
-        if (progress < self.parent.config.animations[animConfig].duration) {
-          var percentLeft = 100 - (progress / self.parent.config.animations[animConfig].duration * 100);
-          console.log("percent left: " + percentLeft);
-          var currentX = endX + ((startX - endX) * percentLeft) / 100;
-          var currentY = endY + ((startY - endY) * percentLeft) / 100;
 
-          row.div.style.left = currentX + "px";
-          row.div.style.top = currentY + "px";
+        if (progress < duration) {
+          var percentLeft = 1 - (progress / duration);
 
-          window.requestAnimationFrame(moveLatexStep);
+          var currentX = toX + ((fromX - toX) * percentLeft);
+          var currentY = toY + ((fromY - toY) * percentLeft);
+
+          row.div.style.left = currentX - (row.div.offsetWidth / 2) + "px";
+          row.div.style.top = currentY - (row.div.offsetHeight / 2) + "px";
+          
+          window.requestAnimationFrame(function(timestamp) {
+            moveLatexStep(timestamp);
+          });
+          
+        } else {
+          console.log("finished and toY is: " + toY);
+          console.log(row)
+          row.div.style.left = (toX - row.div.offsetWidth / 2) + "px";
+          row.div.style.top = (toY - row.div.offsetHeight / 2) + "px";
         }
       };
 
-      window.requestAnimationFrame(moveLatexStep);
-
+      window.requestAnimationFrame(function(timestamp) {
+        moveLatexStep(timestamp);
+      });
     }
+
     row.text.animate({
-      "x": x,
-      "y": y,
-      "font-size": fontSize,
-      "opacity": opacity
-    }, self.parent.config.animations[animConfig].duration, "linear", function() {
-      if (row.div) eve.unbind('raphael.anim.frame.' + row.text.id, onAnimate);
-    });
+      "x": toX,
+      "y": toY
+    }, self.parent.config.animations.move.duration, "linear");
 
     nextRow();
   });
 };
+
+
 
 //------------------------
 // Map.animateRemove(neurons, callback, iteration)
@@ -994,7 +1074,7 @@ Map.prototype.render = function(neuron, callback) {
         if (anchorLowestY < 0) offsetY = -anchorLowestY + self.scaleY(4);
         if (anchorGreatestY > self.viewportHeight) offsetY = (self.viewportHeight - anchorGreatestY) - self.scaleY(4);
 
-        self.animateMove(animations.anchor, offsetX, offsetY, "anchor", function() {
+        self.animateAnchor(animations.anchor, offsetX, offsetY, function() {
           next();
         });
       } else next();
@@ -1002,7 +1082,7 @@ Map.prototype.render = function(neuron, callback) {
     function(next) {  // move whole structure to new position (new scene)
       if (animations.move.length > 0) {
         var offsetX = 0, offsetY = 0;
-        self.animateMove(animations.move, offsetX, offsetY, "move", function() {
+        self.animateMove(animations.move, offsetX, offsetY, function() {
           next();
         });
       } else next();
