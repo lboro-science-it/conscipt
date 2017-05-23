@@ -351,24 +351,28 @@ Map.prototype.rYC = function(neuron) {
 // -
 // Works through neurons, an object of animation attributes, and after the last one, calls callback
 //---------------------------
-Map.prototype.animateAdd = function(neurons, callback, iteration) {
+Map.prototype.animateAdd = function(neurons, callback) {
   var self = this;
-  if (!iteration) var iteration = 0;
-  var neuron = self.getNeuron(neurons[iteration]);     // neuron object, use to check if it has a parent, so we know how to animate it in
-  self.activeScene[neuron.id] = extend(true, {}, self.renderingScene[neuron.id]);  // clone the details from renderingScene (co-ords, etc)
-  
-  self.animateAddRect(neuron, function() {            // animate the rect in
-    self.animateAddTitle(neuron);                     // once rect is in, animate the title in
-    if (iteration + 1 == neurons.length && callback) callback();  // once final rect is added, callback
+
+  async.eachSeries(neurons, function(neuron, next) {
+    var neuron = self.getNeuron(neuron);
+    self.activeScene[neuron.id] = extend(true, {}, self.renderingScene[neuron.id]);
+
+    self.animateAddRect(neuron, function() {
+      self.animateAddTitle(neuron);
+    });
+
+    self.animateAddConnector(neuron);
+
+    setTimeout(function() {
+      console.log("calling next");
+      next();
+    }, self.parent.config.animations.add.interval);
+
+  }, function() {
+    callback();     // all add animations are complete (in fact, they've all just been called)
   });
 
-  self.animateAddConnector(neuron);
-
-  if (iteration + 1 < neurons.length) {               // still neurons to animate, move to the next iteration
-    setTimeout(function() {
-      self.animateAdd(neurons, callback, iteration + 1);
-    }, self.parent.config.animations.add.interval);
-  }
 };
 
 Map.prototype.animateAddConnector = function(neuron, callback) {
@@ -392,7 +396,6 @@ Map.prototype.animateAddConnector = function(neuron, callback) {
       ['M', fromX, fromY],
       ['L', toX, toY]
     ];
-
 
     this.activeScene[neuron.id].connector = this.canvas.path(initPathStruct)
     .attr({
@@ -491,7 +494,7 @@ Map.prototype.animateAddTitle = function(neuron) {
       latexElem.setAttribute("title-row", index);       // on move, we then only need to create a single event and within that, iterate all necessary divs
 
       latexElem.innerHTML = katex.renderToString(customContent);
-      latexElem.addEventListener('click', function() {      // activate neuron's scene on click
+      latexElem.addEventListener('click', latexOnClick = function() {      // activate neuron's scene on click
         self.parent.activate(self.getNeuron(neuron.id));
       });
 
@@ -798,6 +801,7 @@ Map.prototype.animateRemoveRect = function(neuron, callback) {
     "width": 0,
     "height": 0
   }, self.parent.config.animations.remove.duration, "linear", function() {
+    this.unclick();
     this.remove();
     if (callback) callback();
   });
@@ -819,8 +823,10 @@ Map.prototype.animateRemoveTitle = function(neuron, callback) {
     }, self.parent.config.animations.remove.duration, "linear", function() {
       if (isLatex) {
         eve.unbind('raphael.anim.frame.' + row.text.id, onAnimate);
+        row.div.removeEventListener('click', latexOnClick);
         row.div.parentNode.removeChild(row.div);
       }
+      this.unclick();
       this.remove();
       if (index == neuronSceneObj.title.length - 1) nextRow();            // only move to callback once final animation is complete
     });
@@ -1541,16 +1547,22 @@ function appendQBlock(div, content) {
     iPart.style.position = "absolute";
     iPart.style.display = "inline-block";
     iPart.innerHTML = "(click to reveal)";
+    iPart.style.cursor = "pointer";
     iPart.style.paddingTop = ((qPart.offsetHeight - iPart.offsetHeight) / 2) + "px";
 
     var aPart = document.createElement("DIV");
+    aContainer.appendChild(aPart);
     aPart.id = qBlock.id + "-a-" + (i + 1);
     aPart.style.display = "inline-block";
     aPart.style.visibility = "hidden";
     aPart.style.position = "absolute";
-    aContainer.appendChild(aPart);
 
-    qPart.setAttribute('a-part', aPart.id);
+    qPart.setAttribute('a-part', aPart.id);         // used for click event to fade in the answer and remove the instruction
+    iPart.setAttribute('a-part', aPart.id);         // used for click event to fade in the answer and remove the instruction
+    qPart.setAttribute('q-part', qPart.id);
+    iPart.setAttribute('q-part', qPart.id);
+    qPart.setAttribute('i-part', iPart.id);
+    iPart.setAttribute('i-part', iPart.id);
 
     var aType = getComponentType(content.as[i]);
     var aContent = getComponentContent(content.as[i]);
@@ -1560,20 +1572,35 @@ function appendQBlock(div, content) {
       aPart.innerHTML += aContent;
     }
 
-    qPart.addEventListener('click', function() {
-      var aPart = document.getElementById(this.getAttribute('a-part'));
-
-      aPart.style.visibility = "";
-      aPart.style.opacity = 0;
-      var fadeIn = setInterval(function() {
-        if (aPart.style.opacity >= 1) {
-          clearInterval(fadeIn);
-        } else {
-          aPart.style.opacity = parseFloat(aPart.style.opacity) + 0.1;
-        }
-      }, 50);
-    });
+    qPart.addEventListener('click', qClick);
+    iPart.addEventListener('click', qClick);
   }
+};
+
+// handle a question being clicked - fade out the instructional text, remove the click event handlers, change the pointer style
+function qClick(e) {
+  var aPart = document.getElementById(this.getAttribute('a-part'));
+  var iPart = document.getElementById(this.getAttribute('i-part'));
+  var qPart = document.getElementById(this.getAttribute('q-part'));
+
+  aPart.style.visibility = "";
+  aPart.style.opacity = 0;
+  aPart.style.paddingTop = ((qPart.offsetHeight - aPart.offsetHeight) / 2) + "px";    // vertical centre along with the question part
+
+  iPart.style.opacity = 1;
+
+  var fadeIn = setInterval(function() {
+    if (aPart.style.opacity >= 1) {
+      clearInterval(fadeIn);
+      iPart.removeEventListener('click', qClick);
+      qPart.removeEventListener('click', qClick);
+      qPart.style.cursor = "auto";
+      iPart.style.visibility = "hidden";
+    } else {
+      aPart.style.opacity = parseFloat(aPart.style.opacity) + 0.1;
+      iPart.style.opacity = parseFloat(iPart.style.opacity) - 0.1;
+    }
+  }, 50);
 };
 
 View.prototype.render = function(neuron) {

@@ -169,16 +169,22 @@ function appendQBlock(div, content) {
     iPart.style.position = "absolute";
     iPart.style.display = "inline-block";
     iPart.innerHTML = "(click to reveal)";
+    iPart.style.cursor = "pointer";
     iPart.style.paddingTop = ((qPart.offsetHeight - iPart.offsetHeight) / 2) + "px";
 
     var aPart = document.createElement("DIV");
+    aContainer.appendChild(aPart);
     aPart.id = qBlock.id + "-a-" + (i + 1);
     aPart.style.display = "inline-block";
     aPart.style.visibility = "hidden";
     aPart.style.position = "absolute";
-    aContainer.appendChild(aPart);
 
-    qPart.setAttribute('a-part', aPart.id);
+    qPart.setAttribute('a-part', aPart.id);         // used for click event to fade in the answer and remove the instruction
+    iPart.setAttribute('a-part', aPart.id);         // used for click event to fade in the answer and remove the instruction
+    qPart.setAttribute('q-part', qPart.id);
+    iPart.setAttribute('q-part', qPart.id);
+    qPart.setAttribute('i-part', iPart.id);
+    iPart.setAttribute('i-part', iPart.id);
 
     var aType = getComponentType(content.as[i]);
     var aContent = getComponentContent(content.as[i]);
@@ -188,20 +194,35 @@ function appendQBlock(div, content) {
       aPart.innerHTML += aContent;
     }
 
-    qPart.addEventListener('click', function() {
-      var aPart = document.getElementById(this.getAttribute('a-part'));
-
-      aPart.style.visibility = "";
-      aPart.style.opacity = 0;
-      var fadeIn = setInterval(function() {
-        if (aPart.style.opacity >= 1) {
-          clearInterval(fadeIn);
-        } else {
-          aPart.style.opacity = parseFloat(aPart.style.opacity) + 0.1;
-        }
-      }, 50);
-    });
+    qPart.addEventListener('click', qClick);
+    iPart.addEventListener('click', qClick);
   }
+};
+
+// handle a question being clicked - fade out the instructional text, remove the click event handlers, change the pointer style
+function qClick(e) {
+  var aPart = document.getElementById(this.getAttribute('a-part'));
+  var iPart = document.getElementById(this.getAttribute('i-part'));
+  var qPart = document.getElementById(this.getAttribute('q-part'));
+
+  aPart.style.visibility = "";
+  aPart.style.opacity = 0;
+  aPart.style.paddingTop = ((qPart.offsetHeight - aPart.offsetHeight) / 2) + "px";    // vertical centre along with the question part
+
+  iPart.style.opacity = 1;
+
+  var fadeIn = setInterval(function() {
+    if (aPart.style.opacity >= 1) {
+      clearInterval(fadeIn);
+      iPart.removeEventListener('click', qClick);
+      qPart.removeEventListener('click', qClick);
+      qPart.style.cursor = "auto";
+      iPart.style.visibility = "hidden";
+    } else {
+      aPart.style.opacity = parseFloat(aPart.style.opacity) + 0.1;
+      iPart.style.opacity = parseFloat(iPart.style.opacity) - 0.1;
+    }
+  }, 50);
 };
 
 View.prototype.render = function(neuron) {

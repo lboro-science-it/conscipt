@@ -99,24 +99,28 @@ Map.prototype.rYC = function(neuron) {
 // -
 // Works through neurons, an object of animation attributes, and after the last one, calls callback
 //---------------------------
-Map.prototype.animateAdd = function(neurons, callback, iteration) {
+Map.prototype.animateAdd = function(neurons, callback) {
   var self = this;
-  if (!iteration) var iteration = 0;
-  var neuron = self.getNeuron(neurons[iteration]);     // neuron object, use to check if it has a parent, so we know how to animate it in
-  self.activeScene[neuron.id] = extend(true, {}, self.renderingScene[neuron.id]);  // clone the details from renderingScene (co-ords, etc)
-  
-  self.animateAddRect(neuron, function() {            // animate the rect in
-    self.animateAddTitle(neuron);                     // once rect is in, animate the title in
-    if (iteration + 1 == neurons.length && callback) callback();  // once final rect is added, callback
+
+  async.eachSeries(neurons, function(neuron, next) {
+    var neuron = self.getNeuron(neuron);
+    self.activeScene[neuron.id] = extend(true, {}, self.renderingScene[neuron.id]);
+
+    self.animateAddRect(neuron, function() {
+      self.animateAddTitle(neuron);
+    });
+
+    self.animateAddConnector(neuron);
+
+    setTimeout(function() {
+      console.log("calling next");
+      next();
+    }, self.parent.config.animations.add.interval);
+
+  }, function() {
+    callback();     // all add animations are complete (in fact, they've all just been called)
   });
 
-  self.animateAddConnector(neuron);
-
-  if (iteration + 1 < neurons.length) {               // still neurons to animate, move to the next iteration
-    setTimeout(function() {
-      self.animateAdd(neurons, callback, iteration + 1);
-    }, self.parent.config.animations.add.interval);
-  }
 };
 
 Map.prototype.animateAddConnector = function(neuron, callback) {
@@ -140,7 +144,6 @@ Map.prototype.animateAddConnector = function(neuron, callback) {
       ['M', fromX, fromY],
       ['L', toX, toY]
     ];
-
 
     this.activeScene[neuron.id].connector = this.canvas.path(initPathStruct)
     .attr({
@@ -239,7 +242,7 @@ Map.prototype.animateAddTitle = function(neuron) {
       latexElem.setAttribute("title-row", index);       // on move, we then only need to create a single event and within that, iterate all necessary divs
 
       latexElem.innerHTML = katex.renderToString(customContent);
-      latexElem.addEventListener('click', function() {      // activate neuron's scene on click
+      latexElem.addEventListener('click', latexOnClick = function() {      // activate neuron's scene on click
         self.parent.activate(self.getNeuron(neuron.id));
       });
 
@@ -546,6 +549,7 @@ Map.prototype.animateRemoveRect = function(neuron, callback) {
     "width": 0,
     "height": 0
   }, self.parent.config.animations.remove.duration, "linear", function() {
+    this.unclick();
     this.remove();
     if (callback) callback();
   });
@@ -567,8 +571,10 @@ Map.prototype.animateRemoveTitle = function(neuron, callback) {
     }, self.parent.config.animations.remove.duration, "linear", function() {
       if (isLatex) {
         eve.unbind('raphael.anim.frame.' + row.text.id, onAnimate);
+        row.div.removeEventListener('click', latexOnClick);
         row.div.parentNode.removeChild(row.div);
       }
+      this.unclick();
       this.remove();
       if (index == neuronSceneObj.title.length - 1) nextRow();            // only move to callback once final animation is complete
     });
