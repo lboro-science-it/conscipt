@@ -43,33 +43,26 @@ module.exports = function(config) {
 
         n.calculateScene(neuron, sceneConfig, function() {
           
-          var mapRenderView = true;     // map only has to render view if there wasn't already a view drawn
           if (view.visible) {           // if a view is already visible then we only render new view once it's hidden
-            mapRenderView = false;
             view.hide(function() {
               view.clear(function() {
-                if (neuron.resource) view.render(neuron);
+                map.render(neuron, function() {
+                  if (neuron.resource) view.render(neuron);
+                });
               });
             });
+          } else {
+            map.render(neuron, function() {
+              if (neuron.resource) view.render(neuron);
+            })
           }
 
-          map.render(neuron, function() {
-            if (neuron.resource && mapRenderView) view.render(neuron);
-          });
       
           // todo: responsive type modes -> if screen is wider, resource goes to side of map; if taller, resource goes under map.
           
           // todo: katex TITLES are in ARIAL font, but other katex (in VIEWS) is in its own font
 
-          // todo: performance could maybe be improved by making text a single element with /n's
-
-          // todo: search for memory leaks
-
           // todo: check container div size across browsers so no scrollbars (firefox)
-
-          // todo: think about performance benefits through e.g. running all animations simultaneously from a call (and gathering the objects in the other functions)
-
-          // show the view div and fill it with the neuron's view
 
           // todo: changing the recursive functions so they don't have to (e.g.) calculate the length of array every time
           

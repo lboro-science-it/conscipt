@@ -33,7 +33,7 @@ function Map(parent, mapDivId, containerDivId) {
   this.fitXSF = 1, this.fitYSF = 1;                     // scaling factor when content needs to be scaled to fit screen
 
   this.calculateSize(this.parent.div.id);               // sets all sizes, offsets, based on parent div size
-  this.div = dom.addChildDiv({"id": mapDivId,"parent":containerDivId});
+  this.div = dom.addChildDiv({"id": mapDivId,"parent":containerDivId,"style":{"margin":0,"border":0}});
 
   // re-render on resize
   window.addEventListener('resize', function() {
@@ -463,10 +463,8 @@ Map.prototype.animateMoveTitle = function(neuronAnimation, offsetX, offsetY) {
           window.requestAnimationFrame(function(timestamp) {
             moveLatexStep(timestamp);
           });
-          
+
         } else {
-          console.log("finished and toY is: " + toY);
-          console.log(row)
           row.div.style.left = (toX - row.div.offsetWidth / 2) + "px";
           row.div.style.top = (toY - row.div.offsetHeight / 2) + "px";
         }
@@ -485,8 +483,6 @@ Map.prototype.animateMoveTitle = function(neuronAnimation, offsetX, offsetY) {
     nextRow();
   });
 };
-
-
 
 //------------------------
 // Map.animateRemove(neurons, callback, iteration)

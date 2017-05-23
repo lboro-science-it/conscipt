@@ -146,33 +146,26 @@ module.exports = function(config) {
 
         n.calculateScene(neuron, sceneConfig, function() {
           
-          var mapRenderView = true;     // map only has to render view if there wasn't already a view drawn
           if (view.visible) {           // if a view is already visible then we only render new view once it's hidden
-            mapRenderView = false;
             view.hide(function() {
               view.clear(function() {
-                if (neuron.resource) view.render(neuron);
+                map.render(neuron, function() {
+                  if (neuron.resource) view.render(neuron);
+                });
               });
             });
+          } else {
+            map.render(neuron, function() {
+              if (neuron.resource) view.render(neuron);
+            })
           }
 
-          map.render(neuron, function() {
-            if (neuron.resource && mapRenderView) view.render(neuron);
-          });
       
           // todo: responsive type modes -> if screen is wider, resource goes to side of map; if taller, resource goes under map.
           
           // todo: katex TITLES are in ARIAL font, but other katex (in VIEWS) is in its own font
 
-          // todo: performance could maybe be improved by making text a single element with /n's
-
-          // todo: search for memory leaks
-
           // todo: check container div size across browsers so no scrollbars (firefox)
-
-          // todo: think about performance benefits through e.g. running all animations simultaneously from a call (and gathering the objects in the other functions)
-
-          // show the view div and fill it with the neuron's view
 
           // todo: changing the recursive functions so they don't have to (e.g.) calculate the length of array every time
           
@@ -292,7 +285,7 @@ function Map(parent, mapDivId, containerDivId) {
   this.fitXSF = 1, this.fitYSF = 1;                     // scaling factor when content needs to be scaled to fit screen
 
   this.calculateSize(this.parent.div.id);               // sets all sizes, offsets, based on parent div size
-  this.div = dom.addChildDiv({"id": mapDivId,"parent":containerDivId});
+  this.div = dom.addChildDiv({"id": mapDivId,"parent":containerDivId,"style":{"margin":0,"border":0}});
 
   // re-render on resize
   window.addEventListener('resize', function() {
@@ -722,10 +715,8 @@ Map.prototype.animateMoveTitle = function(neuronAnimation, offsetX, offsetY) {
           window.requestAnimationFrame(function(timestamp) {
             moveLatexStep(timestamp);
           });
-          
+
         } else {
-          console.log("finished and toY is: " + toY);
-          console.log(row)
           row.div.style.left = (toX - row.div.offsetWidth / 2) + "px";
           row.div.style.top = (toY - row.div.offsetHeight / 2) + "px";
         }
@@ -744,8 +735,6 @@ Map.prototype.animateMoveTitle = function(neuronAnimation, offsetX, offsetY) {
     nextRow();
   });
 };
-
-
 
 //------------------------
 // Map.animateRemove(neurons, callback, iteration)
@@ -1388,44 +1377,50 @@ var dom = require('./dom');
 var async = require('async');
 var katex = require('katex');
 
-
 module.exports = View;
 
 // view constructor
 function View(parent, viewDivId, containerDivId) {
-  
   this.parent = parent;
-  
-  // create div in dom
-  this.div = dom.addChildDiv({
-    "id": viewDivId,
+
+  this.viewContainerDiv = dom.addChildDiv({      // viewContainer div allows us to vertically centre the content
+    "id": viewDivId + "-container",
     "parent": containerDivId,
     "style": {
-      "visibility": "hidden",
-      "left": "50%",
-      "margin-left": "5em",
+      "left": "55%",
+      "height": "100%",
       "position": "absolute",
       "top": "0",
-      "width": "50%"
+      "visibility": "hidden",
+      "width": "45%"
+    }
+  });
+
+  this.contentDiv = dom.addChildDiv({         // div in which resource content will be drawn
+    "id": viewDivId,
+    "parent": this.viewContainerDiv.id,
+    "style": {
+      "position": "absolute",
+      "top": "50%",
+      "transform": "translateY(-50%)"
     }
   });
 
   this.visible = false;
-
+  this.neuron = null;
   this.content = [];
-
 };
 
 View.prototype.clear = function(callback) {
-  while(this.div.firstChild) {
-    this.div.removeChild(this.div.firstChild);
+  while(this.contentDiv.firstChild) {
+    this.contentDiv.removeChild(this.contentDiv.firstChild);
   }
   if (callback) callback();
 };
 
 View.prototype.hide = function(callback) {
   var self = this;
-  var div = this.div;
+  var div = this.viewContainerDiv;
   var fadeOutEffect = setInterval(function() {
     if (!div.style.opacity) div.style.opacity = 1;
     if (div.style.opacity <= 0) {
@@ -1438,114 +1433,178 @@ View.prototype.hide = function(callback) {
   }, 20);
 };
 
-View.prototype.render = function(neuron) {
-  var self = this;
-  var content = neuron.resource;
-
-  var headerDiv = dom.addChildDiv({
-    "id": neuron.id + "-resource-title",
-    "parent": self.div.id,
+View.prototype.getComponentDiv = function(index) {
+  return dom.addChildDiv({
+    "id": this.neuron.id + "-resource-" + index,
+    "parent": this.contentDiv.id,
     "style": {
-      "font-family": "arial"
+      "font-family": "arial",
+      "padding-top": "1em"
     }
   });
+}
 
-  var header = document.createElement("H1");
-  header.innerHTML = "Resource";
-  headerDiv.appendChild(header);
+function getComponentType(component) {
+  if (typeof component === "string") {
+    return "string";
+  } else {
+    for (var type in component) {
+      return type;
+      break;
+    }
+  }
+}
+
+function getComponentContent(component) {
+  if (typeof component === "string") {
+    return component;
+  } else {
+    for (var type in component) {
+      return component[type];
+      break;
+    }
+  }
+}
+
+function appendTitle(div, content) {
+  var titleDiv = dom.addChildDiv({
+    "id": div.id + "-title",
+    "parent": div.id
+  });
+
+  var titleElem = document.createElement("H1");
+  titleElem.id = div.id + "-title";
+
+  for (var i = 0; i < content.length; i++) {
+    var titleSpan = document.createElement("SPAN");
+    titleSpan.style["padding-right"] = "0.5em";
+    var tType = getComponentType(content[i]);
+    var tContent = getComponentContent(content[i]);
+
+    if (tType == "latex") {
+      titleSpan.innerHTML += katex.renderToString(tContent);
+    } else {
+      titleSpan.innerHTML += tContent;
+    }
+
+    titleElem.appendChild(titleSpan);
+  }
+
+  div.appendChild(titleElem);
+};
+
+function appendQBlock(div, content) {                   
+  var qBlockHeader = dom.addChildDiv({                    // header of the q block
+    "id": div.id + "-qblock-header",
+    "parent": div.id
+  });
+
+  var qTitle = document.createElement("H3");              // put the qtitle in a h3 tag
+  qTitle.innerHTML = content.qtitle;
+  qBlockHeader.appendChild(qTitle);
+
+  var qBlock = document.createElement("OL");              // create ordered list for questions
+  qBlock.id = div.id + "-qblock-content";
+  div.appendChild(qBlock);
+
+  for (var i = 0; i < content.qs.length; i++) {           // create a row for each question
+    var qRow = document.createElement("LI");
+    qRow.id = qBlock.id + "-q-" + (i + 1);
+    qRow.style["padding-top"] = "1em";
+    qBlock.appendChild(qRow);
+
+    var qPart = document.createElement("DIV");
+    qPart.id = qRow.id + "-text";
+    qPart.style.width = "40%";
+    qPart.style.display = "inline-block";
+    qPart.style.cursor = "pointer";
+    qRow.appendChild(qPart);
+
+    var qType = getComponentType(content.qs[i]);
+    var qContent = getComponentContent(content.qs[i]);
+    if (qType == "latex") {
+      qPart.innerHTML += katex.renderToString(qContent);
+    } else {
+      qPart.innerHTML += qContent;
+    }
+
+    var aContainer = document.createElement("DIV");         // container for instructional text + answer
+    aContainer.id = qBlock.id + "-a-container-" + (i + 1);
+    aContainer.style.display = "inline-block";
+    aContainer.style["vertical-align"] = "top";
+    aContainer.style.width = "50%";
+    qRow.appendChild(aContainer);
+
+    var iPart = document.createElement("DIV");              // instructional part
+    aContainer.appendChild(iPart);
+    iPart.id = qBlock.id + "-i-" + (i + 1);
+    iPart.style.position = "absolute";
+    iPart.style.display = "inline-block";
+    iPart.innerHTML = "(click to reveal)";
+    iPart.style.paddingTop = ((qPart.offsetHeight - iPart.offsetHeight) / 2) + "px";
+
+    var aPart = document.createElement("DIV");
+    aPart.id = qBlock.id + "-a-" + (i + 1);
+    aPart.style.display = "inline-block";
+    aPart.style.visibility = "hidden";
+    aPart.style.position = "absolute";
+    aContainer.appendChild(aPart);
+
+    qPart.setAttribute('a-part', aPart.id);
+
+    var aType = getComponentType(content.as[i]);
+    var aContent = getComponentContent(content.as[i]);
+    if (aType == "latex") {
+      aPart.innerHTML += katex.renderToString("=" + aContent);
+    } else {
+      aPart.innerHTML += aContent;
+    }
+
+    qPart.addEventListener('click', function() {
+      var aPart = document.getElementById(this.getAttribute('a-part'));
+
+      aPart.style.visibility = "";
+      aPart.style.opacity = 0;
+      var fadeIn = setInterval(function() {
+        if (aPart.style.opacity >= 1) {
+          clearInterval(fadeIn);
+        } else {
+          aPart.style.opacity = parseFloat(aPart.style.opacity) + 0.1;
+        }
+      }, 50);
+    });
+  }
+};
+
+View.prototype.render = function(neuron) {
+  var self = this;
+  this.neuron = neuron;
+
+  var content = neuron.resource;
 
   async.eachOf(content, function(component, index, nextComponent) {   // iterate the components in the neuron's resource
-    var div = dom.addChildDiv({        // create a div for each component
-      "id": neuron.id + "-resource-" + index,
-      "parent": self.div.id,
-      "style": {
-        "font-family": "arial",
-        "padding-top": "1em"
-      }
+    var div = self.getComponentDiv(index);
 
-    });
-    if (typeof component === "string") {    // treat strings as html
-      div.innerHTML = component;            // put the html in the div
-    } else if (typeof component === "object") {    // object could be latex, qblock
-      for (var type in component) {         // test what type of component it is
-        var content = component[type];
-        if (type == "latex") {                              // latex component
-          div.innerHTML = katex.renderToString(content);
-        } else if (type == "qblock") {                      // qblock component
-          var qBlockHeading = dom.addChildDiv({             // create a heading div
-            "id": div.id + "-qblock-heading",
-            "parent": div.id
-          });
-          var qTitle = document.createElement("H3");        // h3 for the title in the heading div
-          qTitle.innerHTML = content.qtitle;
-          qBlockHeading.appendChild(qTitle);
+    var type = getComponentType(component);
+    var content = getComponentContent(component);
 
-          var qBlock = document.createElement("OL");        // ol for the actual question and answers to go in
-          qBlock.id = div.id + "-qblock-content";
-          div.appendChild(qBlock);
-
-          for (var i = 0; i < content.qs.length; i++) {     // iterate the questions
-            var qRow = document.createElement("LI");        // add a li for the question (and answer)
-            qRow.id = qBlock.id + "-q-" + (i + 1);
-            qRow.style["padding-top"] = "1em";
-
-            var qPart = document.createElement("DIV");
-            qPart.id = qRow.id + "-text";
-            qPart.style.width = "40%";
-            qPart.style.display = "inline-block";
-            qPart.style.cursor = "pointer";
-
-            qRow.appendChild(qPart);
-            for (var qType in content.qs[i]) {              // test what type of question it is
-              if (qType == "latex") {
-                qPart.innerHTML += katex.renderToString(content.qs[i][qType]);
-              } else {    // just treat it as html
-                qPart.innerHTML += content.qs[i][qType];
-              }
-            }
-
-            var aPart = document.createElement("DIV");
-            aPart.id = qBlock.id + "-a-" + (i + 1);
-            aPart.style.display = "inline-block";
-            aPart.style.visibility = "hidden";
-
-            qPart.setAttribute('a-part', aPart.id);
-
-            qRow.appendChild(aPart);
-            for (var aType in content.as[i]) {              // test what type of answer it is
-              if (aType == "latex") {
-                aPart.innerHTML += katex.renderToString("=" + content.as[i][aType]);
-              } else {    // just treat it as html
-                aPart.innerHTML += content.as[i][aType];
-              }
-            }
-
-            qPart.addEventListener('click', function() {      // activate neuron's scene on click
-              var aPart = document.getElementById(this.getAttribute('a-part'));
-
-              aPart.style.visibility = "";
-              aPart.style.opacity = 0;
-              var fadeIn = setInterval(function() {
-                if (aPart.style.opacity >= 1) {
-                  clearInterval(fadeIn);
-                } else {
-                  aPart.style.opacity = parseFloat(aPart.style.opacity) + 0.1;
-                }
-              }, 50);
-            });      
-
-            qBlock.appendChild(qRow);
-          }
-        }
-      }
+    switch (type) {
+      case "string":
+        div.innerHTML = content;
+        break;
+      case "latex":
+        div.innerHTML = katex.renderToString(content);
+        break;
+      case "title":
+        appendTitle(div, content);
+        break;
+      case "qblock":
+        appendQBlock(div, content);
+        break;
     }
+
     nextComponent();
   }, function() { // all components are in the div
-    var viewHeight = self.div.offsetHeight;
-    var viewportHeight = self.parent.div.offsetHeight;
-
-    // position the div vertical centre
-    self.div.style.top = ((viewportHeight - viewHeight) / 2) + "px";
 
     self.show();
   });
@@ -1553,7 +1612,7 @@ View.prototype.render = function(neuron) {
 
 View.prototype.show = function() {
   var self = this;
-  var div = this.div;
+  var div = this.viewContainerDiv;
   self.visible = true;
   if (!div.style.opacity) {
     div.style.opacity = 0;
