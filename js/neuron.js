@@ -187,6 +187,16 @@ neuron.getAngleBetweenChildren = function(neuron) {
   return angle;
 };
 
+
+// as implied, iterates through the array of animations looking for the one where id matches id
+neuron.getAnimationByNeuronId = function(animations, id) {
+  var length = animations.length;
+  for (var i = 0; i < length; i++) {
+    if (animations[i].id == id) return animations[i];
+  }
+  return false;
+};
+
 //------------------------------
 // neuron.getParentAngle
 // -
