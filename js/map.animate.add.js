@@ -40,7 +40,9 @@ module.exports = function(Map) {
       var self = this;
       var parent = neuron.parent;
 
-      var border = this.parent.config.styles[neuron.style]["border-color"] || "#000";
+      var border;
+      if (neuron.style) border = this.parent.config.styles[neuron.style]["border-color"] || "#000";
+      else border = "#000";
       var borderWidth = this.parent.config.styles.default["border-width"] || 3;
 
       // connector from parent's centre to neuron's centre

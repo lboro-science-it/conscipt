@@ -70,6 +70,7 @@ module.exports = function (Map) {
       "height": 0
     }, self.parent.config.animations.remove.duration, "linear", function() {
       this.unclick();
+      this.unhover();
       this.remove();
       if (callback) callback();
     });
@@ -95,6 +96,7 @@ module.exports = function (Map) {
           row.div.parentNode.removeChild(row.div);
         }
         this.unclick();
+        this.unhover();
         this.remove();
         if (index == neuronSceneObj.title.length - 1) nextRow();            // only move to callback once final animation is complete
       });

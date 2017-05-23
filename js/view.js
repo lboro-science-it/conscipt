@@ -30,7 +30,8 @@ function View(parent, viewDivId, containerDivId) {
     "style": {
       "position": "absolute",
       "top": "50%",
-      "transform": "translateY(-50%)"
+      "transform": "translateY(-50%)",
+      "width": "100%"
     }
   });
 

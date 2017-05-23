@@ -292,7 +292,9 @@ module.exports = function(Map) {
       var self = this;
       var parent = neuron.parent;
 
-      var border = this.parent.config.styles[neuron.style]["border-color"] || "#000";
+      var border;
+      if (neuron.style) border = this.parent.config.styles[neuron.style]["border-color"] || "#000";
+      else border = "#000";
       var borderWidth = this.parent.config.styles.default["border-width"] || 3;
 
       // connector from parent's centre to neuron's centre
@@ -465,7 +467,20 @@ module.exports = function(Map) {
 
     async.each(animations, function(animation, next) {
       var neuron = self.activeScene[animation.id];
-      self.activeScene[animation.id].role = self.renderingScene[animation.id].role;   // update role of neuron in activeScene
+
+      // remove hover events to show title of ziis
+      if (self.activeScene[animation.id].role == "zii" && self.renderingScene[animation.id].role != "zii") {
+        neuron.rect.removeData("title");
+        neuron.rect.unhover(ziiHover, ziiUnHover);
+      }
+
+      // add hover event to show title of zii on hover
+      if (self.renderingScene[animation.id].role == "zii" && self.activeScene[animation.id].role != "zii") {
+        neuron.rect.data("title", neuron.title);
+        neuron.rect.hover(ziiHover, ziiUnHover);
+      }
+
+      neuron.role = self.renderingScene[animation.id].role;   // update role of neuron in activeScene
 
       self.animateAnchorTitle(animation, offsetX, offsetY);
       if (self.activeScene[neuron.parent]) {
@@ -547,6 +562,16 @@ module.exports = function(Map) {
 
   };
 
+};
+
+function ziiHover() {
+  console.log(this);
+  console.log(this.data("title"));
+  console.log("zii is now being hovered");
+};
+
+function ziiUnHover() {
+  console.log("zii is not being hovered");
 };
 },{"./neuron":11,"async":13}],7:[function(require,module,exports){
 // map.animate.move.js - animates moving neurons in a scene
@@ -763,6 +788,7 @@ module.exports = function (Map) {
       "height": 0
     }, self.parent.config.animations.remove.duration, "linear", function() {
       this.unclick();
+      this.unhover();
       this.remove();
       if (callback) callback();
     });
@@ -788,6 +814,7 @@ module.exports = function (Map) {
           row.div.parentNode.removeChild(row.div);
         }
         this.unclick();
+        this.unhover();
         this.remove();
         if (index == neuronSceneObj.title.length - 1) nextRow();            // only move to callback once final animation is complete
       });
@@ -1469,7 +1496,8 @@ function View(parent, viewDivId, containerDivId) {
     "style": {
       "position": "absolute",
       "top": "50%",
-      "transform": "translateY(-50%)"
+      "transform": "translateY(-50%)",
+      "width": "100%"
     }
   });
 

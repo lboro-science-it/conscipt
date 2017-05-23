@@ -1,0 +1,70 @@
+<!doctype html>
+
+<html>
+
+  <head>
+
+    <meta charset="utf-8">
+
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+
+    <title>My first conSCIpt concept map</title>
+
+    <meta name="description" content="">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.7.1/katex.min.css">
+
+    <script src="conscipt.js"></script>
+
+  </head>
+
+  <body>
+
+    <script>
+
+      window.onload = function() {
+
+        var myConscipt = Conscipt({
+          "neurons": {
+            "1": {
+              "title": [
+                "Title of first neuron",
+                "in two lines"
+              ]
+            },
+            "1-1": {
+              "title": [
+                "Child neuron title"
+              ],
+              "parent_id": "1",
+              "style": "style_1"
+            },
+            "1-2": {
+              "title": [
+                "Another child neuron",
+                "with a resource"
+              ],
+              "parent_id": "1",
+              "style": "style_1"
+            },
+            "1-3": {
+              "title": [
+              "A third"
+              ],
+              "parent_id": "1"
+            }
+          },
+          "styles": {
+            "style_1": {
+              "border-color": "blue",
+              "fill":"#ffffcc"
+            }
+          }
+        });
+      }
+   </script>
+  </body>
+
+</html>
