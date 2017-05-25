@@ -14,13 +14,15 @@ module.exports = function(Map) {
 
       // remove hover events to show title of ziis
       if (self.activeScene[animation.id].role == "zii" && self.renderingScene[animation.id].role != "zii") {
-        neuron.rect.removeData("title");
+        neuron.rect.removeData("neuronId");
+        neuron.rect.removeData("map");
         neuron.rect.unhover(ziiHover, ziiUnHover);
       }
 
       // add hover event to show title of zii on hover
       if (self.renderingScene[animation.id].role == "zii" && self.activeScene[animation.id].role != "zii") {
-        neuron.rect.data("title", neuron.title);
+        neuron.rect.data("neuronId", neuron.id);
+        neuron.rect.data("map", self);
         neuron.rect.hover(ziiHover, ziiUnHover);
       }
 
@@ -108,11 +110,11 @@ module.exports = function(Map) {
 
 };
 
+
 function ziiHover() {
-  console.log(this);
-  console.log(this.data("title"));
-  console.log("zii is now being hovered");
+  console.log("zii is being hovered");
 };
+
 
 function ziiUnHover() {
   console.log("zii is not being hovered");

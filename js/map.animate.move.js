@@ -114,9 +114,7 @@ module.exports = function(Map) {
             row.div.style.left = currentX - (row.div.offsetWidth / 2) + "px";
             row.div.style.top = currentY - (row.div.offsetHeight / 2) + "px";
             
-            window.requestAnimationFrame(function(timestamp) {
-              moveLatexStep(timestamp);
-            });
+            window.requestAnimationFrame(moveLatexStep);
 
           } else {
             row.div.style.left = (toX - row.div.offsetWidth / 2) + "px";
@@ -124,9 +122,7 @@ module.exports = function(Map) {
           }
         };
 
-        window.requestAnimationFrame(function(timestamp) {
-          moveLatexStep(timestamp);
-        });
+        window.requestAnimationFrame(moveLatexStep);
       }
 
       row.text.animate({

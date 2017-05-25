@@ -31,7 +31,9 @@ module.exports = function(Map) {
       }, self.parent.config.animations.add.interval);
 
     }, function() {
-      callback();     // all add animations are complete
+      setTimeout(function() {
+        callback();     // all add animations are complete
+      }, self.parent.config.animations.add.duration);
     });
   };
 
