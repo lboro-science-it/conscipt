@@ -35,8 +35,7 @@ function Map(parent, mapDivId, containerDivId) {
 
   // re-render on resize
   window.addEventListener('resize', function() {
-    clearTimeout(self.fireResize);  // only resize after 0.2 seconds
-    self.fireResize = setTimeout(function() {self.resize();}, 200);
+    onResizeWindow(self);
   }, true);
   
   // init the Raphael canvas
@@ -49,6 +48,21 @@ require('./map.animate.add.js')(Map);
 require('./map.animate.anchor.js')(Map);
 require('./map.animate.move.js')(Map);
 require('./map.animate.remove.js')(Map);
+
+
+function onResizeWindow(map) {
+  if (!map.rendering) {                         // only calculate resizing if not rendering
+    clearTimeout(map.fireResize);
+    map.fireResize = setTimeout(function() {
+      map.resize();
+    }, 200);
+  } else {                                      // if currently rendering, try again in 200ms
+    setTimeout(function() {
+      onResizeWindow(map);
+    }, 200);
+  }
+};
+
 
 //------------------------
 // Map.calculateSize(containerDivId)
@@ -133,6 +147,7 @@ Map.prototype.render = function(neuron, callback) {
   this.renderingNeuron = neuron;
   this.renderingScene = neuron.scene;
   this.rendering = true;
+  console.log("started rendering");
 
   var animations = { remove: [], anchor: [], move: [], add: [] };
   var anchorGreatestX = this.width, anchorLowestX = 0, anchorGreatestY = this.height, anchorLowestY = 0;
@@ -283,6 +298,7 @@ Map.prototype.render = function(neuron, callback) {
     }
   ], function() {
     self.rendering = false;
+    console.log("done rendering");
     self.activeNeuron = neuron;
     if (callback) callback();
   });
@@ -298,6 +314,3 @@ Map.prototype.resize = function() {
   this.canvas.setSize(this.viewportWidth, this.viewportHeight);
   this.render(this.activeNeuron);
 };
-
-
-

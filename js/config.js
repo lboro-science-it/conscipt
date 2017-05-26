@@ -82,6 +82,9 @@ module.exports = {
       "move": {
         "interval": 0,
         "duration": 500
+      },
+      "hover": {
+        "duration": 250
       }
     }
   },

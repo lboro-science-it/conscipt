@@ -12,18 +12,25 @@ module.exports = function(Map) {
     async.each(animations, function(animation, next) {
       var neuron = self.activeScene[animation.id];
 
-      // remove hover events to show title of ziis
-      if (self.activeScene[animation.id].role == "zii" && self.renderingScene[animation.id].role != "zii") {
-        neuron.rect.removeData("neuronId");
-        neuron.rect.removeData("map");
-        neuron.rect.unhover(ziiHover, ziiUnHover);
-      }
-
       // add hover event to show title of zii on hover
       if (self.renderingScene[animation.id].role == "zii" && self.activeScene[animation.id].role != "zii") {
-        neuron.rect.data("neuronId", neuron.id);
-        neuron.rect.data("map", self);
-        neuron.rect.hover(ziiHover, ziiUnHover);
+        neuron.rect.data("map", self)
+          .data("type", "rect")
+          .hover(ziiHover, ziiUnhover);
+        for (var row in neuron.title) {
+          neuron.title[row].text.data("type", "text")
+            .data("rect", neuron.rect)
+            .hover(ziiHover, ziiUnhover);
+        }
+      }
+
+      // remove hover events to show title of ziis
+      if (self.activeScene[animation.id].role == "zii" && self.renderingScene[animation.id].role != "zii") {
+        neuron.rect.unhover(ziiHover, ziiUnhover);
+        neuron.rect.removeData("map");
+        for (var row in neuron.title) {
+          neuron.title[row].text.unhover(ziiHover, ziiUnhover);
+        }
       }
 
       neuron.role = self.renderingScene[animation.id].role;   // update role of neuron in activeScene
@@ -49,14 +56,13 @@ module.exports = function(Map) {
     var toX = neuronAnimation.x + offsetX + (neuronAnimation.width / 2);    
 
     async.eachOf(neuron.title, function(row, index, nextRow) {
-      var toY, fontSize, opacity;
+      var fontSize, opacity;
+      var lineHeight = (neuronAnimation.height / neuron.title.length) - 1;
+      var toY = (neuronAnimation.y + (index * lineHeight) + 0.5 + (lineHeight / 2)) + offsetY;
       if (neuron.role == "zii") {
         opacity = 0;
         fontSize = 0;
-        toY = neuronAnimation.y + offsetY + (neuronAnimation.height / 2);
       } else {
-        var lineHeight = (neuronAnimation.height / neuron.title.length) - 1;
-        toY = (neuronAnimation.y + (index * lineHeight) + 0.5 + (lineHeight / 2)) + offsetY;
         fontSize = lineHeight / 2;
         opacity = 1;
       }
@@ -105,17 +111,126 @@ module.exports = function(Map) {
       }, self.parent.config.animations.anchor.duration, "linear");
       nextRow();
     });
-
   };
-
 };
 
-
+// can be called from either a rect onHover or a text (title row) onHover
 function ziiHover() {
-  console.log("zii is being hovered");
-};
+  console.log("in hover");
+  var rect = this.data("type") == "rect" ? this : this.data("rect");    // rect contains rect whether caller is rect or text
+  var self = rect.data("map");                                          // self = conscipt instance that caller belongs to
+  
+  if (!self.rendering) {              // only think about hover stuff if not rendering
+
+    this.data("hovering", true);                                          // unhover checks whether the rect or its title elems are being hovered
+    var neuron = self.activeScene[rect.data("neuronId")];                 // neuron obj in activeScene contains details of title
+
+    var state = (!rect.data("state")) ? "origin" : rect.data("state");    // rect state will be origin unless it has been set elsewhere
+
+    if (state == "origin") {
+      rect.data("originX", rect.attrs.x);
+      rect.data("originY", rect.attrs.y);
+      rect.data("originW", rect.attrs.width);
+      rect.data("originH", rect.attrs.height);
+      for (var row in neuron.title) {
+        var text = neuron.title[row].text;
+        text.data("finalX", text.attrs.x);
+        text.data("finalY", text.attrs.y);
+      }
+    }
+
+    if (state == "hoverOut") rect.stop();                                 // interupt unhovering animation
+
+    if (state == "origin" || state == "hoverOut") {   // if in origin or hoverOut we need to animate to hover position
+      rect.data("state", "hoverIn");                        // store the fact we are now animating the hover in
+      var rectToWidth = self.scaleX(self.parent.config.scene.child.width);      // calc new width based on size of a child neuron
+      var rectToHeight = self.scaleY(self.parent.config.scene.child.lineHeight) * neuron.title.length + 1;    // new height based on a child neuron + this neuron's title
+
+      var rectToX = (rect.attrs.x + rect.attrs.width / 2) - rectToWidth / 2;
+      var rectToY = (rect.attrs.y + rect.attrs.height / 2) - rectToHeight / 2;
 
 
-function ziiUnHover() {
-  console.log("zii is not being hovered");
+      rect.toFront().animate({
+        "x": rectToX,
+        "y": rectToY,
+        "width": rectToWidth,
+        "height": rectToHeight
+      }, self.parent.config.animations.hover.duration, "linear", function() {
+        rect.data("state", "hovered");
+      });
+
+      async.each(neuron.title, function(row) {                    // before animating we take a copy of what its size is supposed to be
+        var text = row.text;
+        text.attrs.x = rectToX + rectToWidth / 2;
+        text.attrs.y = rectToY + rectToHeight / 2;
+        text.toFront().animate({
+          "x": text.data("finalX"),
+          "y": text.data("finalY"),
+          "opacity": 1,
+          "font-size": self.scaleY(self.parent.config.scene.child.lineHeight / 2)
+        }, self.parent.config.animations.hover.duration, "linear");
+      });
+
+    }
+  }
 };
+
+function ziiUnhover() {
+  console.log("in unhover");
+  var rect = this.data("type") == "rect" ? this : this.data("rect");
+  var self = rect.data("map");
+
+  this.removeData("hovering");
+  var neuron = self.activeScene[rect.data("neuronId")];
+
+  setTimeout(function() {
+    var state = (!rect.data("state")) ? "origin" : rect.data("state");
+
+    if (state != "origin") {                // can only unhover if we have in fact been hovering
+
+      var hovering = (!rect.data("hovering")) ? false : true;         
+      if (!hovering) {                        // test whether ANY of the elems are being hovered.
+        for (var row in neuron.title) {
+          var hovering = (!neuron.title[row].text.data("hovering")) ? hovering : true;
+        }
+      }
+      if (!hovering) {  // none of the elems are being hovered so we can animate back to origin state
+        if (state == "hoverIn") rect.stop();
+
+        var rectMidX = rect.data("originX") + rect.data("originW") / 2;
+        var rectMidY = rect.data("originY") + rect.data("originH") / 2;
+
+        rect.data("state", "hoverOut");
+        rect.animate({
+          "x": rect.data("originX"),
+          "y": rect.data("originY"),
+          "width": rect.data("originW"),
+          "height": rect.data("originH")
+        }, self.parent.config.animations.hover.duration, "linear", function() {
+          if (this.attrs.x == rect.data("originX")) {
+            rect.removeData("state");
+            rect.removeData("originX");
+            rect.removeData("originY");
+            rect.removeData("originW");
+            rect.removeData("originH");
+          }
+        });
+
+        async.each(neuron.title, function(row) {
+          var text = row.text;
+          text.animate({
+            "x": rectMidX,
+            "y": rectMidY,
+            "opacity": 0,
+            "font-size": 0
+          }, self.parent.config.animations.hover.duration, "linear", function() {
+            this.attrs.x = this.data("finalX");
+            this.attrs.y = this.data("finalY");
+          });
+        });
+
+      }
+    }
+  }, 100);
+
+}
