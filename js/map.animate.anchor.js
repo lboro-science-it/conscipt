@@ -131,8 +131,6 @@ function ziiHover() {
   var rect = this.data("type") == "rect" ? this : this.data("rect");    // rect contains rect whether caller is rect or text
   var self = rect.data("map");                                          // self = conscipt instance that caller belongs to
   
-  console.log("it is hovering");
-
   if (!self.rendering && !this.data("hovering")) {              // only think about hover stuff if not rendering
 
     this.data("hovering", true);                                          // unhover checks whether the rect or its title elems are being hovered
