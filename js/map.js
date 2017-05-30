@@ -147,7 +147,6 @@ Map.prototype.render = function(neuron, callback) {
   this.renderingNeuron = neuron;
   this.renderingScene = neuron.scene;
   this.rendering = true;
-  console.log("started rendering");
 
   var animations = { remove: [], anchor: [], move: [], add: [] };
   var anchorGreatestX = this.width, anchorLowestX = 0, anchorGreatestY = this.height, anchorLowestY = 0;
@@ -298,7 +297,6 @@ Map.prototype.render = function(neuron, callback) {
     }
   ], function() {
     self.rendering = false;
-    console.log("done rendering");
     self.activeNeuron = neuron;
     if (callback) callback();
   });
