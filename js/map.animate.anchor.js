@@ -23,11 +23,11 @@ module.exports = function(Map) {
             .hover(ziiHover, ziiUnhover);
             if (neuron.title[row].div) {      // if it has latex we need to call the hover/unhover events from the div
               var div = neuron.title[row].div;
-              div.addEventListener("mouseover", function() {
+              div.addEventListener("mouseover", latexMouseOver = function() {
                 var text = neuron.title[row].text;
                 text.events[text.events.length - 2].f.call(text);
               });
-              div.addEventListener("mouseout", function() {
+              div.addEventListener("mouseout", latexMouseOut = function() {
                 var text = neuron.title[row].text;
                 text.events[text.events.length - 1].f.call(text);
               });
@@ -41,6 +41,11 @@ module.exports = function(Map) {
         neuron.rect.removeData("map");
         for (var row in neuron.title) {
           neuron.title[row].text.unhover(ziiHover, ziiUnhover);
+          if (neuron.title[row].div) {
+            var div = neuron.title[row].div;
+            div.removeEventListener("mouseover", latexMouseOver);
+            div.removeEventListener("mouseout", latexMouseOut);
+          }
         }
       }
 
@@ -128,6 +133,7 @@ module.exports = function(Map) {
 
 // can be called from either a rect onHover or a text (title row) onHover
 function ziiHover() {
+  console.log("hover being called");
   var rect = this.data("type") == "rect" ? this : this.data("rect");    // rect contains rect whether caller is rect or text
   var self = rect.data("map");                                          // self = conscipt instance that caller belongs to
   
@@ -171,42 +177,31 @@ function ziiHover() {
 
       async.each(neuron.title, function(row) {                    // before animating we take a copy of what its size is supposed to be
         var text = row.text;
-
         text.attrs.x = rectToX + rectToWidth / 2;                 // move the text elem to the middle of the rect
         text.attrs.y = rectToY + rectToHeight / 2;                // move the text elem to the middle of the rect
-
         var fontSize = self.scaleY(self.parent.config.scene.child.lineHeight / 2);
         var opacity = 1;
         var duration = self.parent.config.animations.hover.duration;
 
-        // begins: animating latex
         if (row.div) {      // row has latex div 
           var fontSizeDiff = parseFloat(row.div.style.fontSize) - fontSize;       // we use to track animating from 0 to target fontsize
           var opacityDiff = row.div.style.opacity - opacity;                      // track animating form 0 to 1
-
           var fromX = parseFloat(row.div.style.left) + row.div.offsetWidth / 2;   // need to check whether these start at the right place, presumably yes
           var fromY = parseFloat(row.div.style.top) + row.div.offsetHeight / 2;   // and are just invisible?
-
           var toX = text.data("finalX");
           var toY = text.data("finalY");
-
           var start = null;
-
           function hoverLatexStep(timestamp) {
             if (!start) start = timestamp;
             var progress = timestamp - start;
             if (progress < duration) {
               var percentRemaining = 1 - (progress / duration);
-
               row.div.style.fontSize = fontSize + (fontSizeDiff * percentRemaining) + "px";
               row.div.style.opacity = opacity + (opacityDiff * percentRemaining);
-
               var currentX = toX + ((fromX - toX) * percentRemaining);
               var currentY = toY + ((fromY - toY) * percentRemaining);
-
               row.div.style.left = currentX - (row.div.offsetWidth / 2) + "px";
               row.div.style.top = currentY - (row.div.offsetHeight / 2) + "px";
-
               window.requestAnimationFrame(hoverLatexStep);
             } else {
               row.div.style.fontSize = fontSize + "px";
@@ -215,12 +210,8 @@ function ziiHover() {
               row.div.style.top = toY - row.div.offsetHeight / 2;
             }
           }
-
           window.requestAnimationFrame(hoverLatexStep);
         }
-        // ends: animating latex
-
-
         text.toFront().animate({
           "x": text.data("finalX"),
           "y": text.data("finalY"),
@@ -243,9 +234,7 @@ function ziiUnhover() {
 
   setTimeout(function() {
     var state = (!rect.data("state")) ? "origin" : rect.data("state");
-
     if (state != "origin") {                // can only unhover if we have in fact been hovering
-
       var hovering = (!rect.data("hovering")) ? false : true;         
       if (!hovering) {                        // test whether ANY of the elems are being hovered.
         for (var row in neuron.title) {
@@ -254,10 +243,8 @@ function ziiUnhover() {
       }
       if (!hovering) {  // none of the elems are being hovered so we can animate back to origin state
         if (state == "hoverIn") rect.stop();
-
         var rectMidX = rect.data("originX") + rect.data("originW") / 2;
         var rectMidY = rect.data("originY") + rect.data("originH") / 2;
-
         rect.data("state", "hoverOut");
         rect.animate({
           "x": rect.data("originX"),
@@ -276,45 +263,24 @@ function ziiUnhover() {
 
         async.each(neuron.title, function(row) {
           var text = row.text;
-
           if (row.div) {        // has latex
-          //  var fontSizeDiff = parseFloat(row.div.style.fontSize) - 0;     // difference between starting and target font size
             var opacity = 0;
             var opacityDiff = row.div.style.opacity - opacity;                    // diff between starting and target opacity
-
-          //  var fromX = parseFloat(row.div.style.left) + row.div.offsetWidth / 2;
-          //  var fromY = parseFloat(row.div.style.top) + row.div.offsetHeight / 2;
-
             var start = null;
             var duration = self.parent.config.animations.hover.duration;
-
             function unhoverLatexStep(timestamp) {
               if (!start) start = timestamp;
               var progress = timestamp - start;
               if (progress < duration) {
                 var percentRemaining = 1 - (progress / duration);
-
-              //  row.div.style.fontSize = fontSize + (fontSizeDiff * percentRemaining) + "px";
                 row.div.style.opacity = opacity + (opacityDiff * percentRemaining);
-
-              //  var currentX = toX + ((fromX - toX) * percentRemaining);
-              //  var currentY = toY + ((fromY - toY) * percentRemaining);
-
-              //  row.div.style.left = currentX - (row.div.offsetWidth / 2) + "px";
-              //  row.div.style.top = currentY - (row.div.offsetHeight / 2) + "px";
-
                 window.requestAnimationFrame(unhoverLatexStep);
               } else {
-              //  row.div.style.fontSize = fontSize + "px";
                 row.div.style.opacity = opacity;
-              //  row.div.style.left = toX - row.div.offsetWidth / 2;
-              //  row.div.style.top = toY - row.div.offsetHeight / 2;
               }
             }
-
             window.requestAnimationFrame(unhoverLatexStep);
           }
-
           text.animate({
             "x": rectMidX,
             "y": rectMidY,
