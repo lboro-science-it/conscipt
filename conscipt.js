@@ -594,7 +594,6 @@ module.exports = function(Map) {
 
 // can be called from either a rect onHover or a text (title row) onHover
 function ziiHover() {
-  console.log("hover being called");
   var rect = this.data("type") == "rect" ? this : this.data("rect");    // rect contains rect whether caller is rect or text
   var self = rect.data("map");                                          // self = conscipt instance that caller belongs to
   
