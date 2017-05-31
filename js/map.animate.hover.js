@@ -5,7 +5,6 @@ var async = require('async');
 module.exports = function(Map) {
 
   Map.prototype.addNeuronHover = function(neuron) {
-    console.log("addNeuronHover called for neuron: " + neuron.id);
     neuron.rect.data("map", this).data("type", "rect").hover(ziiHover, ziiUnhover);
     for (var row in neuron.title) {
       neuron.title[row].text.data("type", "text").data("rect", neuron.rect).hover(ziiHover, ziiUnhover);
@@ -13,25 +12,24 @@ module.exports = function(Map) {
         var div = neuron.title[row].div;
         var text = neuron.title[row].text;
         div.addEventListener("mouseover", latexMouseOver = function() {
-          console.log(text.events);
-          text.events[text.events.length - 2].f.call(text);
+          // todo: below is a hack; really the eventListener should only be being called when there are text events, however we can't successfully remove the event listener yet
+          if (text.events) text.events[text.events.length - 2].f.call(text);
         });
         div.addEventListener("mouseout", latexMouseOut = function() {
-          text.events[text.events.length - 1].f.call(text);
+          if (text.events) text.events[text.events.length - 1].f.call(text);
         });
       }
     }
   }
 
   Map.prototype.removeNeuronHover = function(neuron) {
-    console.log("removeNeuronHover called for neuron: " + neuron.id);
     neuron.rect.unhover(ziiHover, ziiUnhover);
-    neuron.rect.removeData("map");
+    neuron.rect.removeData("map").removeData("originX").removeData("originY").removeData("originW").removeData("originH").removeData("state");
     for (var row in neuron.title) {
       neuron.title[row].text.unhover(ziiHover, ziiUnhover);
+      neuron.title[row].text.removeData();
       if (neuron.title[row].div) {
         var div = neuron.title[row].div;
-        console.log("trying to unregister the div events");
         div.removeEventListener("mouseover", latexMouseOver);
         div.removeEventListener("mouseout", latexMouseOut);
       }
