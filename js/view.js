@@ -2,8 +2,11 @@
 
 var dom = require('./dom');
 
-var async = require('async');
-var katex = require('katex');
+//var async = require('async');
+var async = {};
+async.eachOf = require('async/eachOf');
+
+var katex = require('katex/dist/katex.min.js');
 
 module.exports = View;
 

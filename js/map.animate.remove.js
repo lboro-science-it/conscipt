@@ -2,7 +2,9 @@
 
 var n = require('./neuron');
 
-var async = require('async');
+//var async = require('async');
+var async = {};
+async.eachOf = require('async/eachOf');
 
 module.exports = function (Map) {
 

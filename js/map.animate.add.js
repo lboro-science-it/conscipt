@@ -3,9 +3,13 @@
 var dom = require('./dom');
 var n = require('./neuron');
 
-var async = require('async');
+//var async = require('async');
+var async = {};
+async.eachSeries = require('async/eachSeries');
+async.eachOf = require('async/eachOf');
+
 var extend = require('extend');
-var katex = require('katex');
+var katex = require('katex/dist/katex.min.js');
 
 module.exports = function(Map) {
 

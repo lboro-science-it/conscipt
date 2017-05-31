@@ -16,8 +16,9 @@
   "author": "Sean Slingsby <s.c.slingsby@lboro.ac.uk>",
   "license": "ISC",
   "dependencies": {
+    "async": "^4.5.0",
     "extend": "^3.0.0",
-    "jquery": "^1.12.4",
+    "katex": "^3.10.10",
     "raphael": "^2.2.7",
     "uglifyjs": "^2.4.10"
   }

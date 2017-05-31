@@ -1,6 +1,8 @@
 // neuron.js - stuff pertaining to neuron(s) - angles, positions, scenes, etc
 
-var async = require('async');
+// var async = require('async');
+var async = {};
+async.whilst = require('async/whilst');
 
 var neuron = {};    // object to hold class functions
 

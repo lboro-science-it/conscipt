@@ -1,6 +1,8 @@
 // map.animate.hover.js - functions to manage hovering
 
-var async = require('async');
+//var async = require('async');
+var async = {};
+async.each = require('async/each');
 
 module.exports = function(Map) {
 
@@ -27,7 +29,7 @@ module.exports = function(Map) {
     neuron.rect.removeData("map").removeData("originX").removeData("originY").removeData("originW").removeData("originH").removeData("state");
     for (var row in neuron.title) {
       neuron.title[row].text.unhover(ziiHover, ziiUnhover);
-      neuron.title[row].text.removeData();
+      neuron.title[row].text.removeData("finalX").removeData("finalY");
       if (neuron.title[row].div) {
         var div = neuron.title[row].div;
         div.removeEventListener("mouseover", latexMouseOver);

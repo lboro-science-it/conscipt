@@ -3,7 +3,11 @@
 var dom = require('./dom');         // for adding divs with style config etc
 var n = require('./neuron');        // neuron-related functions
 
-var async = require('async');       // async control flow, iterative loops, etc
+//var async = require('async');       // async control flow, iterative loops, etc
+var async = {};
+async.series = require('async/series');
+async.each = require('async/each');
+
 var Raphael = require('raphael');   // Raphael = graphic library
 
 module.exports = Map;
