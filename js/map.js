@@ -46,6 +46,7 @@ function Map(parent, mapDivId, containerDivId) {
 require('./map.geometry.js')(Map);
 require('./map.animate.add.js')(Map);
 require('./map.animate.anchor.js')(Map);
+require('./map.animate.hover.js')(Map);
 require('./map.animate.move.js')(Map);
 require('./map.animate.remove.js')(Map);
 
