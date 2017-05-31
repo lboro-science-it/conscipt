@@ -12,19 +12,10 @@ module.exports = function(Map) {
     async.each(animations, function(animation, next) {
       var neuron = self.activeScene[animation.id];
 
-      // add hover event to show title of zii on hover
-      if (self.renderingScene[animation.id].role == "zii" && self.activeScene[animation.id].role != "zii") {
-        self.addNeuronHover(neuron);
-      }
-
-      // todo: below will only removeNeuronHover from neurons which were in the scene and still are. need to add something to animateRemove also.
-
-      // remove hover events to show title of ziis
-      if (self.activeScene[animation.id].role == "zii" && !(self.renderingScene[animation.id].role == "zii")) {
-        self.removeNeuronHover(neuron);
-      }
-
-      neuron.role = self.renderingScene[animation.id].role;   // update role of neuron in activeScene
+      // add hover for neurons becoming Zii in this scene; remove from those no longer Zii
+      if (self.rRole(neuron) == "zii" && self.aRole(neuron) != "zii") self.addNeuronHover(neuron);
+      if (self.aRole(neuron) == "zii" && self.rRole(neuron) != "zii") self.removeNeuronHover(neuron);
+      neuron.role = self.rRole(neuron);   // update role of neuron in activeScene
 
       self.animateAnchorTitle(animation, offsetX, offsetY);
       if (self.activeScene[neuron.parent]) {

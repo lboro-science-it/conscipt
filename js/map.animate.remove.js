@@ -17,9 +17,7 @@ module.exports = function (Map) {
     var iteration = iteration || 0;
     var neuron = self.getNeuron(neurons[iteration]);     // neuron object of neuron to delete
 
-    if (self.activeScene[neuron.id].role == "zii") {
-      self.removeNeuronHover(self.activeScene[neuron.id]);
-    }
+    if (self.activeScene[neuron.id].role == "zii") self.removeNeuronHover(self.activeScene[neuron.id]);
 
     this.animateRemoveTitle(neuron, function() {
       self.animateRemoveConnector(neuron);

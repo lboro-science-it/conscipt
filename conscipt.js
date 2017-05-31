@@ -473,19 +473,10 @@ module.exports = function(Map) {
     async.each(animations, function(animation, next) {
       var neuron = self.activeScene[animation.id];
 
-      // add hover event to show title of zii on hover
-      if (self.renderingScene[animation.id].role == "zii" && self.activeScene[animation.id].role != "zii") {
-        self.addNeuronHover(neuron);
-      }
-
-      // todo: below will only removeNeuronHover from neurons which were in the scene and still are. need to add something to animateRemove also.
-
-      // remove hover events to show title of ziis
-      if (self.activeScene[animation.id].role == "zii" && !(self.renderingScene[animation.id].role == "zii")) {
-        self.removeNeuronHover(neuron);
-      }
-
-      neuron.role = self.renderingScene[animation.id].role;   // update role of neuron in activeScene
+      // add hover for neurons becoming Zii in this scene; remove from those no longer Zii
+      if (self.rRole(neuron) == "zii" && self.aRole(neuron) != "zii") self.addNeuronHover(neuron);
+      if (self.aRole(neuron) == "zii" && self.rRole(neuron) != "zii") self.removeNeuronHover(neuron);
+      neuron.role = self.rRole(neuron);   // update role of neuron in activeScene
 
       self.animateAnchorTitle(animation, offsetX, offsetY);
       if (self.activeScene[neuron.parent]) {
@@ -938,9 +929,7 @@ module.exports = function (Map) {
     var iteration = iteration || 0;
     var neuron = self.getNeuron(neurons[iteration]);     // neuron object of neuron to delete
 
-    if (self.activeScene[neuron.id].role == "zii") {
-      self.removeNeuronHover(self.activeScene[neuron.id]);
-    }
+    if (self.activeScene[neuron.id].role == "zii") self.removeNeuronHover(self.activeScene[neuron.id]);
 
     this.animateRemoveTitle(neuron, function() {
       self.animateRemoveConnector(neuron);
@@ -1062,6 +1051,9 @@ module.exports = function(Map) {
   Map.prototype.aYC = function(neuron) {
     return this.aY(neuron) + (this.aH(neuron) / 2);
   };
+  Map.prototype.aRole = function(neuron) {
+    return this.activeScene[neuron.id].role;
+  };
 
   // returns either the centre of the parent (if a neuron has a parent) or the centre of own final position
   Map.prototype.getOriginX = function(neuron, scene) {
@@ -1077,16 +1069,6 @@ module.exports = function(Map) {
     var scene = scene || "rendering";
     if (scene == "rendering") return this.rYC(neuron);
     else return this.aYC(neuron);
-  };
-
-  // function that takes a percentage x (as defined in neuron scenes) and returns the position based on scaling factor
-  Map.prototype.scaleX = function(x) {
-    return x * this.widthSF;
-  };
-
-  // return y co-ord based on scaling factor based on height of screen
-  Map.prototype.scaleY = function(y) {
-    return y * this.heightSF;
   };
 
   //-----------------------------
@@ -1111,6 +1093,17 @@ module.exports = function(Map) {
   };
   Map.prototype.rYC = function(neuron) {
     return this.rY(neuron) + (this.rH(neuron) / 2);
+  };
+  Map.prototype.rRole = function(neuron) {
+    return this.renderingScene[neuron.id].role;
+  };
+  // function that takes a percentage x (as defined in neuron scenes) and returns the position based on scaling factor
+  Map.prototype.scaleX = function(x) {
+    return x * this.widthSF;
+  };
+  // return y co-ord based on scaling factor based on height of screen
+  Map.prototype.scaleY = function(y) {
+    return y * this.heightSF;
   };
 
 };
