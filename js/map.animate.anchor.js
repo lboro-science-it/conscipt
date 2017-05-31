@@ -4,6 +4,24 @@ var n = require('./neuron');
 
 var async = require('async');
 
+function addNeuronHover(neuron, map) {
+  console.log("new function works");
+  neuron.rect.data("map", map).data("type", "rect").hover(ziiHover, ziiUnhover);
+  for (var row in neuron.title) {
+    neuron.title[row].text.data("type", "text").data("rect", neuron.rect).hover(ziiHover, ziiUnhover);
+    if (neuron.title[row].div) {
+      var div = neuron.title[row].div;
+      var text = neuron.title[row].text;
+      div.addEventListener("mouseover", latexMouseOver = function() {
+        text.events[text.events.length - 2].f.call(text);
+      });
+      div.addEventListener("mouseout", latexMouseOut = function() {
+        text.events[text.events.length - 1].f.call(text);
+      });
+    }
+  }
+}
+
 module.exports = function(Map) {
 
   Map.prototype.animateAnchor = function(animations, offsetX, offsetY, callback) {
@@ -14,7 +32,8 @@ module.exports = function(Map) {
 
       // add hover event to show title of zii on hover
       if (self.renderingScene[animation.id].role == "zii" && self.activeScene[animation.id].role != "zii") {
-        neuron.rect.data("map", self)
+        addNeuronHover(neuron, self);
+/*        neuron.rect.data("map", self)
           .data("type", "rect")
           .hover(ziiHover, ziiUnhover);
         for (var row in neuron.title) {
@@ -33,6 +52,7 @@ module.exports = function(Map) {
               });
             }
         }
+*/
       }
 
       // remove hover events to show title of ziis
