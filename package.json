@@ -8,7 +8,7 @@
     "browserify": "browserify index.js -o conscipt.js",
     "browserify-dev": "browserify index.js -o conscipt.js",
     "postbrowserify": "npm run uglifyjs",
-    "uglifyjs": "uglifyjs conscipt.js -o conscipt.js",
+    "uglifyjs": "uglifyjs -mt --reserved-names 'require' --lift-vars -o conscipt.js conscipt.js",
     "build": "npm run browserify",
     "build-dev": "npm run browserify-dev",
     "watch-dev": "watchify index.js -o conscipt.js"
