@@ -1142,7 +1142,16 @@ function Map(parent, mapDivId, containerDivId) {
   this.fitXSF = 1, this.fitYSF = 1;                     // scaling factor when content needs to be scaled to fit screen
 
   this.calculateSize(this.parent.div.id);               // sets all sizes, offsets, based on parent div size
-  this.div = dom.addChildDiv({"id": mapDivId,"parent":containerDivId,"style":{"margin":0,"border":0}});
+  this.div = dom.addChildDiv({
+    "id": mapDivId,
+    "parent":containerDivId,
+    "style":{
+      "margin":0,
+      "border":0,
+      "width":"100%",
+      "height":"100%"
+    }
+  });
 
   // re-render on resize
   window.addEventListener('resize', function() {
@@ -1150,7 +1159,7 @@ function Map(parent, mapDivId, containerDivId) {
   }, true);
   
   // init the Raphael canvas
-  this.canvas = Raphael(this.div, this.viewportWidth, this.viewportHeight);   
+  this.canvas = Raphael(this.div, "100%", "100%");   
 };
 
 // extend the Map prototype with animation functions
