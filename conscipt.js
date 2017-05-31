@@ -471,14 +471,12 @@ module.exports = function(Map) {
     var self = this;
 
     async.each(animations, function(animation, next) {
-
       var neuron = self.activeScene[animation.id];
 
       if (self.rRole(neuron) == "zii" && self.aRole(neuron) != "zii") self.addNeuronHover(neuron);    // add hover to neurons becoming zii
       if (self.aRole(neuron) == "zii" && self.rRole(neuron) != "zii") self.removeNeuronHover(neuron); // remove hover from no-longer zii
-
       neuron.role = self.rRole(neuron);   // update role of neuron in activeScene
-
+      
       self.animateAnchorTitle(animation, offsetX, offsetY);
 
       if (self.activeScene[neuron.parent]) {
@@ -489,18 +487,14 @@ module.exports = function(Map) {
       self.animateMoveRect(animation, offsetX, offsetY, "anchor");
 
       next();
-
     }, function() {
-
       setTimeout(function() {
         if (callback) callback();
       }, self.parent.config.animations.anchor.duration);
-
     });
   };
 
   Map.prototype.animateAnchorTitle = function(neuronAnimation, offsetX, offsetY, animConfig) {
-
     var self = this;
     var neuron = this.activeScene[neuronAnimation.id];
 
@@ -508,14 +502,11 @@ module.exports = function(Map) {
 
     async.eachOf(neuron.title, function(row, index, nextRow) {
 
-      var fontSize, opacity;
+      var fontSize = 0, opacity = 0;
       var lineHeight = (neuronAnimation.height / neuron.title.length) - 1;
       var toY = (neuronAnimation.y + (index * lineHeight) + 0.5 + (lineHeight / 2)) + offsetY;
 
-      if (neuron.role == "zii") {
-        opacity = 0;
-        fontSize = 0;
-      } else {
+      if (neuron.role != "zii") {
         fontSize = lineHeight / 2;
         opacity = 1;
       }
@@ -534,7 +525,6 @@ module.exports = function(Map) {
 };
 
 function latexDivAnimate(div, x, y, fontSize, opacity, duration) {
-  console.log("latexDivAnimate seems to work");
   var fontSizeDiff = parseFloat(div.style.fontSize) - fontSize;     // difference between starting and target font size
   var opacityDiff = div.style.opacity - opacity;                    // diff between starting and target opacity
 
