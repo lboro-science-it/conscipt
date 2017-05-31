@@ -520,44 +520,7 @@ module.exports = function(Map) {
         opacity = 1;
       }
 
-      if (row.div) {
-        //latexDivAnimate(row.div, toX, toY, fontSize, opacity, self.parent.config.animations.anchor.duration);
-        
-        var fontSizeDiff = parseFloat(row.div.style.fontSize) - fontSize;     // difference between starting and target font size
-        var opacityDiff = row.div.style.opacity - opacity;                    // diff between starting and target opacity
-
-        var fromX = parseFloat(row.div.style.left) + row.div.offsetWidth / 2;
-        var fromY = parseFloat(row.div.style.top) + row.div.offsetHeight / 2;
-
-        var start = null;
-        var duration = self.parent.config.animations.anchor.duration;
-
-        function anchorLatexStep(timestamp) {
-          if (!start) start = timestamp;
-          var progress = timestamp - start;
-          if (progress < duration) {
-            var percentRemaining = 1 - (progress / duration);
-
-            row.div.style.fontSize = fontSize + (fontSizeDiff * percentRemaining) + "px";
-            row.div.style.opacity = opacity + (opacityDiff * percentRemaining);
-
-            var currentX = toX + ((fromX - toX) * percentRemaining);
-            var currentY = toY + ((fromY - toY) * percentRemaining);
-
-            row.div.style.left = currentX - (row.div.offsetWidth / 2) + "px";
-            row.div.style.top = currentY - (row.div.offsetHeight / 2) + "px";
-
-            window.requestAnimationFrame(anchorLatexStep);
-          } else {
-            row.div.style.fontSize = fontSize + "px";
-            row.div.style.opacity = opacity;
-            row.div.style.left = toX - row.div.offsetWidth / 2;
-            row.div.style.top = toY - row.div.offsetHeight / 2;
-          }
-        }
-        window.requestAnimationFrame(anchorLatexStep);
-        
-      }
+      if (row.div) latexDivAnimate(row.div, toX, toY, fontSize, opacity, self.parent.config.animations.anchor.duration);
 
       row.text.animate({
         "x": toX,
